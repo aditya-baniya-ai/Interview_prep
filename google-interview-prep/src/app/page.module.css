@@ -201,6 +201,68 @@
   margin-top: var(--space-1);
 }
 
+/* ---------- Ticker ---------- */
+.ticker {
+  width: 100vw;
+  overflow: hidden;
+  margin-top: var(--space-10);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.tickerTrack {
+  display: flex;
+  width: max-content;
+  animation: ticker-scroll 20s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.tickerItems {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 var(--space-8);
+}
+
+.tickerLogo {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.tickerApple {
+  filter: brightness(0);
+}
+:global([data-theme="dark"]) .tickerApple {
+  filter: brightness(0) invert(1);
+}
+
+.tickerName {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-left: var(--space-3);
+  white-space: nowrap;
+}
+
+.tickerDivider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 var(--space-6);
+  flex-shrink: 0;
+}
+
 /* ---------- Features Section ---------- */
 .features {
   padding: var(--space-20) var(--space-8);
@@ -255,10 +317,32 @@
   transform: translateY(-2px);
 }
 
-.accentBlue::before  { background: var(--accent-blue); }
-.accentRed::before   { background: var(--accent-red); }
-.accentGreen::before { background: var(--accent-green); }
-.accentYellow::before { background: var(--accent-yellow); }
+.accentBlue::before    { background: var(--accent-blue); }
+.accentRed::before     { background: var(--accent-red); }
+.accentGreen::before   { background: var(--accent-green); }
+.accentYellow::before  { background: var(--accent-yellow); }
+.accentNetflix::before { background: #E50914; }
+.accentAmazon::before  { background: #FF9900; }
+.accentMeta::before    { background: #0082FB; }
+
+/* Feature card FAANG watermark */
+.featureWatermark {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.featureWatermarkApple {
+  filter: brightness(0);
+}
+:global([data-theme="dark"]) .featureWatermarkApple {
+  filter: brightness(0) invert(1);
+}
 
 .featureIcon {
   width: 48px;

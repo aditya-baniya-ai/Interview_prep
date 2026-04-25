@@ -4,11 +4,14 @@ import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 
 export const metadata: Metadata = {
-  title: "Google Interview Prep AI",
+  title: "FAANG Prep AI",
   description:
-    "AI-powered mock interview preparation for Google new-grad roles. Real-time voice conversations, live code execution, and comprehensive feedback.",
+    "AI-powered mock interview preparation for Google, Amazon, Meta, Apple, and Netflix. Real-time voice conversations, live code execution, and comprehensive feedback.",
   keywords: [
+    "FAANG interview",
     "Google interview",
+    "Amazon interview",
+    "Meta interview",
     "coding interview",
     "interview prep",
     "AI interviewer",
@@ -16,9 +19,9 @@ export const metadata: Metadata = {
     "DSA practice",
   ],
   openGraph: {
-    title: "Google Interview Prep AI",
+    title: "FAANG Prep AI",
     description:
-      "Practice Google interviews with a multimodal AI interviewer that speaks, listens, and evaluates your code in real-time.",
+      "Practice FAANG interviews with a multimodal AI interviewer that speaks, listens, and evaluates your code in real-time.",
     type: "website",
   },
 };

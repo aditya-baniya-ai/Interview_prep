@@ -9,7 +9,8 @@ export const LOGO_URLS = {
 };
 
 /** Navbar logo row: five logos + "FAANG Prep" text */
-export function FaangLogoCluster() {
+export function FaangLogoCluster({ forceDark = false }: { forceDark?: boolean }) {
+  const textClass = forceDark ? styles.clusterTextDark : styles.clusterText;
   return (
     <div className={styles.cluster}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -22,7 +23,7 @@ export function FaangLogoCluster() {
       <img src={LOGO_URLS.apple}   width={16} height={20} alt="Apple"   className={`${styles.logo} ${styles.logoGap} ${styles.appleLogo}`} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={LOGO_URLS.netflix} width={40} height={20} alt="Netflix" className={`${styles.logo} ${styles.logoGap}`} />
-      <span className={styles.clusterText}>FAANG Prep</span>
+      <span className={textClass}>FAANG Prep</span>
     </div>
   );
 }

@@ -32,6 +32,15 @@
   white-space: nowrap;
 }
 
+.clusterTextDark {
+  font-family: 'Roboto', 'Google Sans', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #E8EAED;
+  margin-left: 10px;
+  white-space: nowrap;
+}
+
 /* ---- Dashboard company banner ---- */
 .banner {
   height: 44px;

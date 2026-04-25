@@ -1,21 +1,14 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import { ThemeToggle } from "@/lib/theme";
+import { FaangLogoCluster, LOGO_URLS } from "@/components/FaangLogos";
 
 export default function Home() {
   return (
     <div className={styles.landing}>
       {/* ---------- Navbar ---------- */}
       <nav className={styles.navbar} id="main-nav">
-        <div className={styles.navLogo}>
-          <svg width="24" height="24" viewBox="0 0 24 24" aria-label="Google G">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          <span>Interview Prep</span>
-        </div>
+        <FaangLogoCluster />
         <div className={styles.navActions}>
           <ThemeToggle className={styles.themeToggle} />
           <Link href="/login" className={styles.signInBtn}>
@@ -33,15 +26,14 @@ export default function Home() {
         <h1 className={styles.heroTitle}>
           <span className={styles.wordBlue}>Ace</span>{" "}
           <span className={styles.wordRed}>Your</span>{" "}
-          <span className={styles.wordYellow}>Google</span>{" "}
+          <span className={styles.wordYellow}>FAANG</span>{" "}
           <span className={styles.wordGreen}>Interview</span>
         </h1>
 
         <p className={styles.heroDesc}>
-          Practice with an AI interviewer that speaks, listens, and evaluates
-          your code in real-time — just like a real Google interview. Get
-          instant feedback on your coding, communication, and problem-solving
-          skills.
+          Practice with an AI interviewer built for Google, Amazon, Meta, Apple,
+          and Netflix — the five hardest interviews in tech. Get instant feedback
+          on your coding, communication, and problem-solving skills.
         </p>
 
         <div className={styles.heroCta}>
@@ -51,6 +43,36 @@ export default function Home() {
           <Link href="#features" className={styles.ctaSecondary} id="cta-learn-more">
             Learn More
           </Link>
+        </div>
+
+        {/* ---------- Ticker ---------- */}
+        <div className={styles.ticker}>
+          <div className={styles.tickerTrack}>
+            {[0, 1].map((i) => (
+              <div key={i} className={styles.tickerItems} aria-hidden={i === 1}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LOGO_URLS.google}  height={24} width={24} alt="Google"  className={styles.tickerLogo} />
+                <span className={styles.tickerName}>Google</span>
+                <span className={styles.tickerDivider} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LOGO_URLS.amazon}  height={24} width={58} alt="Amazon"  className={styles.tickerLogo} />
+                <span className={styles.tickerName}>Amazon</span>
+                <span className={styles.tickerDivider} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LOGO_URLS.meta}    height={24} width={58} alt="Meta"    className={styles.tickerLogo} />
+                <span className={styles.tickerName}>Meta</span>
+                <span className={styles.tickerDivider} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LOGO_URLS.apple}   height={24} width={20} alt="Apple"   className={`${styles.tickerLogo} ${styles.tickerApple}`} />
+                <span className={styles.tickerName}>Apple</span>
+                <span className={styles.tickerDivider} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LOGO_URLS.netflix} height={24} width={48} alt="Netflix" className={styles.tickerLogo} />
+                <span className={styles.tickerName}>Netflix</span>
+                <span className={styles.tickerDivider} />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className={styles.heroStats}>
@@ -73,13 +95,15 @@ export default function Home() {
       <section className={styles.features} id="features">
         <h2 className={styles.sectionTitle}>Everything You Need to Prepare</h2>
         <p className={styles.sectionSub}>
-          A comprehensive AI-powered platform that simulates the full Google
-          interview experience.
+          A comprehensive AI-powered platform that simulates the full FAANG
+          interview experience — from coding to behavioral.
         </p>
 
         <div className={styles.featureGrid}>
-          <div className={`${styles.featureCard} ${styles.accentBlue}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>🎤</div>
+          <div className={`${styles.featureCard} ${styles.accentNetflix}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URLS.netflix} alt="" aria-hidden="true" className={styles.featureWatermark} />
+            <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>🎤</div>
             <h3 className={styles.featureTitle}>Real-Time Voice Conversation</h3>
             <p className={styles.featureDesc}>
               Talk to your AI interviewer naturally. It listens, responds
@@ -88,8 +112,10 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`${styles.featureCard} ${styles.accentRed}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>💻</div>
+          <div className={`${styles.featureCard} ${styles.accentAmazon}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URLS.amazon} alt="" aria-hidden="true" className={styles.featureWatermark} />
+            <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>💻</div>
             <h3 className={styles.featureTitle}>Live Code Execution</h3>
             <p className={styles.featureDesc}>
               Write code in a full-featured editor. Your code compiles and runs
@@ -97,8 +123,10 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`${styles.featureCard} ${styles.accentGreen}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconGreen}`}>📹</div>
+          <div className={`${styles.featureCard} ${styles.accentBlue}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URLS.google} alt="" aria-hidden="true" className={styles.featureWatermark} />
+            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>📹</div>
             <h3 className={styles.featureTitle}>Webcam Integration</h3>
             <p className={styles.featureDesc}>
               The AI observes your body language and engagement level through
@@ -106,16 +134,20 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`${styles.featureCard} ${styles.accentYellow}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>🧠</div>
+          <div className={`${styles.featureCard} ${styles.accentMeta}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URLS.meta} alt="" aria-hidden="true" className={styles.featureWatermark} />
+            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>🧠</div>
             <h3 className={styles.featureTitle}>Adaptive Intelligence</h3>
             <p className={styles.featureDesc}>
               The AI adjusts difficulty and gives hints progressively, just like
-              a real Google interviewer would. It follows up on your approach.
+              a real FAANG interviewer would. It follows up on your approach.
             </p>
           </div>
 
           <div className={`${styles.featureCard} ${styles.accentBlue}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URLS.apple} alt="" aria-hidden="true" className={`${styles.featureWatermark} ${styles.featureWatermarkApple}`} />
             <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>📊</div>
             <h3 className={styles.featureTitle}>Comprehensive Feedback</h3>
             <p className={styles.featureDesc}>
@@ -125,11 +157,13 @@ export default function Home() {
           </div>
 
           <div className={`${styles.featureCard} ${styles.accentRed}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO_URLS.google} alt="" aria-hidden="true" className={styles.featureWatermark} />
             <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>🎯</div>
             <h3 className={styles.featureTitle}>50+ DSA Problems</h3>
             <p className={styles.featureDesc}>
               Curated problem bank covering Arrays, Trees, Graphs, DP, and
-              more — all calibrated for Google new-grad level interviews.
+              more — all calibrated for FAANG new-grad level interviews.
             </p>
           </div>
         </div>
@@ -185,8 +219,8 @@ export default function Home() {
         <div className={styles.ctaCard}>
           <h2 className={styles.ctaTitle}>Ready to Practice?</h2>
           <p className={styles.ctaDesc}>
-            Sign in with your Google account and start your first mock
-            interview in under a minute.
+            Sign in with your Google account and start your first FAANG
+            mock interview in under a minute.
           </p>
           <Link href="/login" className={styles.ctaPrimary} id="cta-bottom">
             Start Free Practice
@@ -196,7 +230,7 @@ export default function Home() {
 
       {/* ---------- Footer ---------- */}
       <footer className={styles.footer}>
-        <p>© {new Date().getFullYear()} Google Interview Prep AI — Built with Gemini</p>
+        <p>© {new Date().getFullYear()} FAANG Prep AI — Built with Gemini</p>
       </footer>
     </div>
   );
