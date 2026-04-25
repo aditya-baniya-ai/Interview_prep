@@ -177,14 +177,16 @@ export class GeminiLiveClient {
           }
         }
 
-        // Input transcription (what the user said) — accumulate
+        // Input transcription (what the user said) — accumulate + stream interim
         if (serverContent.inputTranscription?.text) {
           this.userTranscriptBuffer += serverContent.inputTranscription.text;
+          this.config.onTranscriptUpdate("user", this.userTranscriptBuffer, false);
         }
 
-        // Output transcription (what the AI said) — accumulate
+        // Output transcription (what the AI said) — accumulate + stream interim
         if (serverContent.outputTranscription?.text) {
           this.aiTranscriptBuffer += serverContent.outputTranscription.text;
+          this.config.onTranscriptUpdate("interviewer", this.aiTranscriptBuffer, false);
         }
 
         // Handle interruption (user started speaking while AI is talking)

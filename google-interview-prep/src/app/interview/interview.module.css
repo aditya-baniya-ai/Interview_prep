@@ -122,7 +122,7 @@
   overflow: hidden;
 }
 
-/* ---------- Left Panel ---------- */
+/* ---------- Left Panel (coding phase) ---------- */
 .leftPanel {
   width: 360px;
   min-width: 360px;
@@ -130,6 +130,307 @@
   flex-direction: column;
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-0);
+}
+
+/* ---------- Transition Overlay ---------- */
+.transitionOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0c0c0e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transitionContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.transitionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin: 0;
+}
+
+.transitionSub {
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.4);
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   BEHAVIORAL PHASE — Video Call Layout
+   ═══════════════════════════════════════════════ */
+
+.behavioralRoom {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: #0c0c0e;
+}
+
+/* ── Transcript Sidebar ── */
+.transcriptSidebar {
+  width: 300px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.transcriptHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 20px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.transcriptDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.8);
+  flex-shrink: 0;
+}
+
+.transcriptFeed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  scrollbar-width: none;
+}
+
+.transcriptFeed::-webkit-scrollbar {
+  display: none;
+}
+
+.transcriptEmpty {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.2);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.transcriptEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: fadeInUp 0.25s ease;
+}
+
+.transcriptEntryLive {
+  opacity: 0.75;
+}
+
+.transcriptSpeaker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.transcriptText {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0;
+}
+
+.transcriptCursor {
+  display: inline-block;
+  width: 2px;
+  height: 13px;
+  background: rgba(255, 255, 255, 0.55);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ── Video Stage ── */
+.videoStage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 56px;
+  gap: 36px;
+}
+
+.videoTiles {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  max-width: 1020px;
+  justify-content: center;
+}
+
+.videoTile {
+  flex: 1;
+  max-width: 490px;
+  aspect-ratio: 4 / 3;
+  border-radius: 24px;
+  overflow: hidden;
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.09);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.videoTileActive {
+  border-color: rgba(52, 199, 89, 0.55);
+  box-shadow: 0 0 0 1px rgba(52, 199, 89, 0.25),
+              0 0 40px rgba(52, 199, 89, 0.1);
+}
+
+.videoTileStream {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.videoTilePlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 13px;
+}
+
+.videoTilePlaceholder span:first-child {
+  font-size: 44px;
+  opacity: 0.35;
+}
+
+.videoTileLabel {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.02em;
+}
+
+.speakingIndicator {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.9);
+  animation: pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1);    }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+
+.aiAvatarFull {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #111118 0%, #161628 50%, #0d1f3c 100%);
+}
+
+.aiAvatarFullImg {
+  width: 52%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 32px rgba(66, 133, 244, 0.3));
+}
+
+/* ── Controls Bar ── */
+.videoControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.controlBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  color: inherit;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  transform: scale(1.05);
+}
+
+.controlBtnMuted {
+  background: rgba(255, 59, 48, 0.18);
+  border-color: rgba(255, 59, 48, 0.4);
+}
+
+.audioStatusBadge {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 9px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.02em;
 }
 
 /* Webcam Section */

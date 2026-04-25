@@ -1,16 +1,46 @@
 """
-Problem Bank — Curated DSA problems for Google new-grad interview practice.
-
-Each problem includes:
-- Title, description, examples, constraints
-- Function signatures per language
-- Test cases
-- Expected optimal complexity
-- Difficulty and topic tags
+Problem Bank — DSA problems fetched from Firestore.
+Falls back to the hardcoded list if Firestore is not configured.
 """
 
+import os
 import random
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+_cache: list[dict] = []
+
+
+def _load_from_firestore() -> list[dict]:
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, firestore as fs
+
+        service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "")
+        if not service_account_path or not os.path.exists(service_account_path):
+            return []
+
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(service_account_path)
+            firebase_admin.initialize_app(cred)
+
+        db = fs.client()
+        docs = db.collection("problems").stream()
+        problems = [doc.to_dict() for doc in docs]
+        logger.info(f"Loaded {len(problems)} problems from Firestore.")
+        return problems
+    except Exception as e:
+        logger.warning(f"Firestore unavailable, falling back to local bank: {e}")
+        return []
+
+
+def _get_problems() -> list[dict]:
+    global _cache
+    if not _cache:
+        _cache = _load_from_firestore() or PROBLEMS
+    return _cache
 
 PROBLEMS = [
     {
@@ -419,43 +449,24 @@ def get_random_problem(
     difficulty: Optional[str] = None,
     exclude_ids: Optional[list[str]] = None,
 ) -> dict:
-    """Select a random problem from the bank, optionally filtered.
-
-    Args:
-        tags: Filter by topic tags
-        difficulty: Filter by difficulty (Easy, Medium, Hard)
-        exclude_ids: Problem IDs to exclude (already used)
-
-    Returns:
-        A problem dict
-    """
-    filtered = PROBLEMS
+    problems = _get_problems()
+    filtered = problems
 
     if tags:
-        filtered = [
-            p for p in filtered if any(t in p["tags"] for t in tags)
-        ]
-
+        filtered = [p for p in filtered if any(t in p["tags"] for t in tags)]
     if difficulty:
         filtered = [p for p in filtered if p["difficulty"] == difficulty]
-
     if exclude_ids:
         filtered = [p for p in filtered if p["id"] not in exclude_ids]
-
     if not filtered:
-        filtered = PROBLEMS  # Fallback to all problems
+        filtered = problems
 
     return random.choice(filtered)
 
 
 def get_problem_by_id(problem_id: str) -> Optional[dict]:
-    """Get a specific problem by its ID."""
-    for p in PROBLEMS:
-        if p["id"] == problem_id:
-            return p
-    return None
+    return next((p for p in _get_problems() if p["id"] == problem_id), None)
 
 
 def get_all_problems() -> list[dict]:
-    """Get all problems in the bank."""
-    return PROBLEMS
+    return _get_problems()
