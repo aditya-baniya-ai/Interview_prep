@@ -35,6 +35,14 @@
   justify-content: center;
 }
 
+.feedbackNavSuffix {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: var(--space-3);
+}
+
 /* ---------- Content ---------- */
 .feedbackContent {
   max-width: 900px;
