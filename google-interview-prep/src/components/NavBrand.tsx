@@ -10,7 +10,7 @@ export function NavBrand({ forceDark = false }: { forceDark?: boolean }) {
         height={30}
         className={styles.logoImg}
       />
-      <span className={styles.brandText}>Prep</span>
+
     </div>
   );
 }
