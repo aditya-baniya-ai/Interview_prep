@@ -111,17 +111,13 @@ export class GeminiLiveClient {
         systemInstruction: {
           parts: [{ text: this.tokenData.system_instruction }],
         },
-        // Enable transcriptions so we can show text in the UI
         outputAudioTranscription: {},
         inputAudioTranscription: {},
         realtimeInputConfig: {
           automaticActivityDetection: {
             disabled: false,
-            // Wait 3 seconds of silence before considering the user done
-            silenceDurationMs: 3000,
-            // Extra padding at the start of speech
-            prefixPaddingMs: 500,
-            // Low sensitivity = waits longer before deciding speech ended
+            silenceDurationMs: 4000,   // needs 4s of silence before turn ends
+            prefixPaddingMs: 700,      // needs 0.7s of speech before triggering
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
           },
@@ -179,7 +175,13 @@ export class GeminiLiveClient {
 
         // Input transcription (what the user said) — accumulate + stream interim
         if (serverContent.inputTranscription?.text) {
-          this.userTranscriptBuffer += serverContent.inputTranscription.text;
+          const chunk = serverContent.inputTranscription.text;
+          // Discard chunks with non-Latin characters — Gemini hallucinating from noise
+          if (/[^\x00-\x7F]/.test(chunk)) {
+            this.userTranscriptBuffer = "";
+            return;
+          }
+          this.userTranscriptBuffer += chunk;
           this.config.onTranscriptUpdate("user", this.userTranscriptBuffer, false);
         }
 
@@ -206,8 +208,12 @@ export class GeminiLiveClient {
             this.aiTranscriptBuffer = "";
           }
           if (this.userTranscriptBuffer.trim()) {
-            this.config.onTranscriptUpdate("user", this.userTranscriptBuffer.trim(), true);
+            const userText = this.userTranscriptBuffer.trim();
             this.userTranscriptBuffer = "";
+            // Only commit if it's clean English text
+            if (!/[^\x00-\x7F]/.test(userText)) {
+              this.config.onTranscriptUpdate("user", userText, true);
+            }
           }
           this.config.onAudioStateChange(false);
         }

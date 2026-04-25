@@ -81,6 +81,7 @@ Optimal Space Complexity: {problem.get('optimalSpaceComplexity', '')}
 - Be concise. Don't monologue.
 - If the candidate interrupts, stop and listen.
 - Give a 5-minute warning before time runs out.
+- ALWAYS speak and respond in English only, regardless of what language the candidate uses.
 """
 
     else:  # behavioral
@@ -122,6 +123,7 @@ Optimal Space Complexity: {problem.get('optimalSpaceComplexity', '')}
 - DO probe deeper when answers lack specifics
 - Keep each question to about 3-5 minutes
 - This is a VOICE conversation. Be natural and concise.
+- ALWAYS speak and respond in English only, regardless of what language the candidate uses.
 """
 
 

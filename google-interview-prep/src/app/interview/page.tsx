@@ -73,7 +73,9 @@ function InterviewContent() {
   const [audioStatus, setAudioStatus] = useState<
     "idle" | "listening" | "speaking"
   >("idle");
-  const [phase, setPhase] = useState<"behavioral" | "transitioning" | "coding">("behavioral");
+  const [phase, setPhase] = useState<"behavioral" | "transitioning" | "coding">(
+    interviewType === "coding" ? "coding" : "behavioral"
+  );
   const [interimEntry, setInterimEntry] = useState<{ speaker: string; text: string } | null>(null);
   const [showEndModal, setShowEndModal] = useState(false);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
@@ -275,28 +277,35 @@ function InterviewContent() {
     }, 2000);
   };
 
-  const handleTransitionToCoding = async () => {
-    setPhase("transitioning");
+  const fetchProblem = useCallback(async () => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
       const listRes = await fetch(`${backendUrl}/api/problems`);
-      if (listRes.ok) {
-        const list = await listRes.json();
-        const filtered = list.filter((p: { difficulty: string }) => p.difficulty === difficulty);
-        const pool = filtered.length ? filtered : list;
-        const picked = pool[Math.floor(Math.random() * pool.length)];
-        const fullRes = await fetch(`${backendUrl}/api/problems/${picked.id}`);
-        if (fullRes.ok) {
-          const full = await fullRes.json();
-          setProblem(full);
-          if (full.starterCode?.[selectedLanguage]) {
-            setCode(full.starterCode[selectedLanguage]);
-          }
-        }
-      }
+      if (!listRes.ok) return;
+      const list = await listRes.json();
+      const filtered = list.filter((p: { difficulty: string }) => p.difficulty === difficulty);
+      const pool = filtered.length ? filtered : list;
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      const fullRes = await fetch(`${backendUrl}/api/problems/${picked.id}`);
+      if (!fullRes.ok) return;
+      const full = await fullRes.json();
+      setProblem(full);
+      if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
     } catch (e) {
-      console.error("Failed to fetch problem for coding phase:", e);
+      console.error("Failed to fetch problem:", e);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [difficulty, selectedLanguage]);
+
+  // Fetch problem immediately when starting in coding mode
+  useEffect(() => {
+    if (interviewType === "coding") fetchProblem();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTransitionToCoding = async () => {
+    setPhase("transitioning");
+    await fetchProblem();
     await new Promise((r) => setTimeout(r, 2000));
     setPhase("coding");
   };
@@ -570,91 +579,75 @@ function InterviewContent() {
         </div>
       )}
 
-      {/* ── Coding Phase — Split Layout ── */}
+      {/* ── Coding Phase — Reversed Layout ── */}
       {phase === "coding" && (
         <div className={styles.mainContent}>
-          {/* Left Panel: Webcam + Chat */}
-          <div className={styles.leftPanel}>
-            <div className={styles.webcamSection}>
-              <div className={styles.videoFeeds}>
-                <div className={styles.webcamContainer}>
-                  <div className={styles.aiAvatar}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={isAvatarMouthOpen ? "/avatar-open.png" : "/avatar-closed.png"}
-                      alt="AI Interviewer"
-                      className={`${styles.aiAvatarImage} ${audioStatus === "speaking" ? styles.aiAvatarSpeakingPulse : ""}`}
-                    />
-                    <span className={styles.aiAvatarLabel}>
-                      {audioStatus === "speaking" ? "Speaking..." : "Sarah (Interviewer)"}
-                    </span>
-                  </div>
-                  <div className={styles.webcamOverlay}>
-                    <span className={styles.webcamBadge}>🤖 AI</span>
-                  </div>
+          {/* Left: Stacked videos + transcript (mirror of behavioral) */}
+          <div className={styles.codingLeftPanel}>
+            <div className={styles.videoStack}>
+              {/* AI tile */}
+              <div className={`${styles.videoTileStacked} ${audioStatus === "speaking" ? styles.videoTileActive : ""}`}>
+                <div className={styles.aiAvatarFull}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={isAvatarMouthOpen ? "/avatar-open.png" : "/avatar-closed.png"} alt="AI Interviewer" className={styles.aiAvatarFullImg} />
                 </div>
-                <div className={styles.webcamContainer}>
-                  <video
-                    ref={videoRef}
-                    className={styles.webcamVideo}
-                    autoPlay playsInline muted
-                    style={{ display: isWebcamActive ? "block" : "none" }}
-                  />
-                  {isWebcamActive ? (
-                    <div className={styles.webcamOverlay}>
-                      <span className={styles.webcamBadge}>
-                        <span className={styles.liveDot}></span>
-                        YOU
-                      </span>
-                    </div>
-                  ) : (
-                    <div className={styles.webcamPlaceholder}>
-                      <span className={styles.webcamPlaceholderIcon}>📹</span>
-                      <span>Camera off</span>
-                    </div>
-                  )}
+                <div className={styles.videoTileLabel}>
+                  {audioStatus === "speaking" && <span className={styles.speakingIndicator} />}
+                  Sarah · Interviewer
+                </div>
+              </div>
+              {/* User tile */}
+              <div className={`${styles.videoTileStacked} ${audioStatus === "listening" ? styles.videoTileActive : ""}`}>
+                <video ref={videoRef} className={styles.videoTileStream} autoPlay playsInline muted style={{ display: isWebcamActive ? "block" : "none" }} />
+                {!isWebcamActive && (
+                  <div className={styles.videoTilePlaceholder}><span>📹</span><span>Camera off</span></div>
+                )}
+                <div className={styles.videoTileLabel}>
+                  {audioStatus === "listening" && <span className={styles.speakingIndicator} />}
+                  You
                 </div>
               </div>
             </div>
-            <div className={styles.audioControls}>
-              <button
-                className={`${styles.micBtn} ${isMicActive ? styles.micBtnActive : styles.micBtnMuted}`}
-                onClick={toggleMic}
-                id="mic-toggle"
-                title={isMicActive ? "Mute microphone" : "Unmute microphone"}
-              >
+
+            {/* Transcript */}
+            <div className={styles.codingTranscript}>
+              <div className={styles.transcriptHeader}>
+                <span className={styles.transcriptDot} />
+                Transcript
+              </div>
+              <div className={styles.transcriptFeed} ref={chatContainerRef}>
+                {transcript.length === 0 && !interimEntry && (
+                  <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
+                )}
+                {transcript.map((entry, i) => (
+                  <div key={i} className={styles.transcriptEntry}>
+                    <span className={styles.transcriptSpeaker}>{entry.speaker === "interviewer" ? "Sarah" : "You"}</span>
+                    <p className={styles.transcriptText}>{entry.text}</p>
+                  </div>
+                ))}
+                {interimEntry && (
+                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+                    <span className={styles.transcriptSpeaker}>{interimEntry.speaker === "interviewer" ? "Sarah" : "You"}</span>
+                    <p className={styles.transcriptText}>{interimEntry.text}<span className={styles.transcriptCursor} /></p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className={styles.codingControls}>
+              <button className={`${styles.controlBtn} ${!isMicActive ? styles.controlBtnMuted : ""}`} onClick={toggleMic} title={isMicActive ? "Mute" : "Unmute"}>
                 {isMicActive ? "🎤" : "🔇"}
               </button>
-              <div className={`${styles.audioStatus} ${audioStatus === "listening" ? styles.audioStatusListening : audioStatus === "speaking" ? styles.audioStatusSpeaking : ""}`}>
-                {audioStatus === "listening" && (<><div className="waveform"><div className="bar"></div><div className="bar"></div><div className="bar"></div><div className="bar"></div><div className="bar"></div></div>Listening...</>)}
-                {audioStatus === "speaking" && "AI is speaking..."}
-                {audioStatus === "idle" && (isMicActive ? "Mic ready" : "Mic muted")}
-              </div>
-            </div>
-            <div className={styles.chatSection}>
-              <div className={styles.chatHeader}>💬 Conversation</div>
-              <div className={styles.chatMessages} ref={chatContainerRef}>
-                {transcript.length === 0 ? (
-                  <div className={styles.chatEmpty}><span className={styles.chatEmptyIcon}>💬</span>Waiting for connection...</div>
-                ) : (
-                  transcript.map((entry, i) => (
-                    <div className={styles.chatMessage} key={i}>
-                      <div className={`${styles.chatAvatar} ${entry.speaker === "interviewer" ? styles.chatAvatarInterviewer : styles.chatAvatarUser}`}>
-                        {entry.speaker === "interviewer" ? "AI" : "U"}
-                      </div>
-                      <div className={styles.chatBubble}>
-                        <div className={styles.chatSpeaker}>{entry.speaker === "interviewer" ? "Interviewer" : "You"}</div>
-                        <div className={styles.chatText}>{entry.text}</div>
-                        <div className={styles.chatTime}>{new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className={styles.audioStatusBadge}>
+                {audioStatus === "listening" && "Listening..."}
+                {audioStatus === "speaking" && "Sarah is speaking..."}
+                {audioStatus === "idle" && (isMicActive ? "Mic ready" : "Muted")}
               </div>
             </div>
           </div>
 
-          {/* Right Panel: Editor */}
+          {/* Right: IDE + problem */}
           <div className={styles.rightPanel}>
             {problem && (
               <div className={styles.problemBar}>
