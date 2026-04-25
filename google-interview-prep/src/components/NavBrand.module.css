@@ -1,0 +1,39 @@
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.logoImg {
+  height: 30px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  /* white bg on the PNG blends naturally in light mode (white nav) */
+  border-radius: 6px;
+}
+
+/* Dark mode: show image on a white pill so colored logos stay vivid */
+:global([data-theme="dark"]) .logoImg {
+  background: #ffffff;
+  padding: 2px 6px;
+}
+
+/* Always-dark interview room: same white pill without needing data-theme */
+.brandForceDark .logoImg {
+  background: #ffffff;
+  padding: 2px 6px;
+}
+
+/* "Prep" text — colorful gradient matching the logo palette */
+.brandText {
+  font-family: 'Roboto', 'Google Sans', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  background: linear-gradient(135deg, #4285F4 0%, #EA4335 40%, #FBBC04 70%, #34A853 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.3px;
+}

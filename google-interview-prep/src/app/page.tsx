@@ -1,61 +1,46 @@
 import styles from "./page.module.css";
 import Link from "next/link";
+import { ThemeToggle } from "@/lib/theme";
+import { NavBrand } from "@/components/NavBrand";
 
 export default function Home() {
   return (
     <div className={styles.landing}>
       {/* ---------- Navbar ---------- */}
       <nav className={styles.navbar} id="main-nav">
-        <div className={styles.navLogo}>
-          <div className={styles.logoIcon}>G</div>
-          Interview Prep AI
-        </div>
-        <div className={styles.navActions} suppressHydrationWarning>
-          <Link href="/login" className="btn btn-ghost" suppressHydrationWarning>
+        <NavBrand />
+        <div className={styles.navActions}>
+          <ThemeToggle className={styles.themeToggle} />
+          <Link href="/login" className={styles.signInBtn}>
             Sign In
-          </Link>
-          <Link href="/login" className="btn btn-primary" suppressHydrationWarning>
-            Get Started
           </Link>
         </div>
       </nav>
 
       {/* ---------- Hero ---------- */}
       <section className={styles.hero} id="hero-section">
-        <div className={styles.heroTag}>
-          <span className={styles.heroTagDot}></span>
+        <div className={styles.heroBadge}>
           Powered by Google Gemini AI
         </div>
 
         <h1 className={styles.heroTitle}>
-          Ace Your{" "}
-          <span className={styles.heroGradient}>FAANG Interview</span>
-          <br />
-          With AI Practice
+          <span className={styles.wordBlue}>Ace</span>{" "}
+          <span className={styles.wordRed}>Your</span>{" "}
+          <span className={styles.wordYellow}>FAANG</span>{" "}
+          <span className={styles.wordGreen}>Interview</span>
         </h1>
 
         <p className={styles.heroDesc}>
-          Practice with an AI interviewer that speaks, listens, and evaluates
-          your code in real-time — just like a real FAANG interview. Get
-          instant feedback on your coding, communication, and problem-solving
-          skills.
+          Practice with an AI interviewer built for Google, Amazon, Meta, Apple,
+          and Netflix — the five hardest interviews in tech. Get instant feedback
+          on your coding, communication, and problem-solving skills.
         </p>
 
-        <div className={styles.heroCta} suppressHydrationWarning>
-          <Link
-            href="/login"
-            className={`btn btn-primary ${styles.heroCtaBtn}`}
-            id="cta-start"
-            suppressHydrationWarning
-          >
-            Start Practicing →
+        <div className={styles.heroCta}>
+          <Link href="/login" className={styles.ctaPrimary} id="cta-start">
+            Start Practicing
           </Link>
-          <Link
-            href="#features"
-            className={`btn btn-secondary ${styles.heroCtaBtn}`}
-            id="cta-learn-more"
-            suppressHydrationWarning
-          >
+          <Link href="#features" className={styles.ctaSecondary} id="cta-learn-more">
             Learn More
           </Link>
         </div>
@@ -78,22 +63,16 @@ export default function Home() {
 
       {/* ---------- Features ---------- */}
       <section className={styles.features} id="features">
-        <h2 className={styles.sectionTitle}>
-          Everything You Need to Prepare
-        </h2>
+        <h2 className={styles.sectionTitle}>Everything You Need to Prepare</h2>
         <p className={styles.sectionSub}>
-          A comprehensive AI-powered platform that simulates the full Google
-          interview experience.
+          A comprehensive AI-powered platform that simulates the full FAANG
+          interview experience — from coding to behavioral.
         </p>
 
         <div className={styles.featureGrid}>
-          <div className={`card ${styles.featureCard}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>
-              🎤
-            </div>
-            <h3 className={styles.featureTitle}>
-              Real-Time Voice Conversation
-            </h3>
+          <div className={`${styles.featureCard} ${styles.accentRed}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>🎤</div>
+            <h3 className={styles.featureTitle}>Real-Time Voice Conversation</h3>
             <p className={styles.featureDesc}>
               Talk to your AI interviewer naturally. It listens, responds
               instantly, and even stops when you interrupt — just like a real
@@ -101,10 +80,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`card ${styles.featureCard}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconGreen}`}>
-              💻
-            </div>
+          <div className={`${styles.featureCard} ${styles.accentYellow}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>💻</div>
             <h3 className={styles.featureTitle}>Live Code Execution</h3>
             <p className={styles.featureDesc}>
               Write code in a full-featured editor. Your code compiles and runs
@@ -112,10 +89,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`card ${styles.featureCard}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>
-              📹
-            </div>
+          <div className={`${styles.featureCard} ${styles.accentGreen}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconGreen}`}>📹</div>
             <h3 className={styles.featureTitle}>Webcam Integration</h3>
             <p className={styles.featureDesc}>
               The AI observes your body language and engagement level through
@@ -123,10 +98,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`card ${styles.featureCard}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>
-              🧠
-            </div>
+          <div className={`${styles.featureCard} ${styles.accentYellow}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>🧠</div>
             <h3 className={styles.featureTitle}>Adaptive Intelligence</h3>
             <p className={styles.featureDesc}>
               The AI adjusts difficulty and gives hints progressively, just like
@@ -134,10 +107,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`card ${styles.featureCard}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconOrange}`}>
-              📊
-            </div>
+          <div className={`${styles.featureCard} ${styles.accentBlue}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>📊</div>
             <h3 className={styles.featureTitle}>Comprehensive Feedback</h3>
             <p className={styles.featureDesc}>
               Get a detailed report covering code quality, time complexity,
@@ -145,16 +116,12 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`card ${styles.featureCard}`}>
-            <div className={`${styles.featureIcon} ${styles.featureIconPurple}`}>
-              🎯
-            </div>
-            <h3 className={styles.featureTitle}>
-              50+ DSA Problems
-            </h3>
+          <div className={`${styles.featureCard} ${styles.accentRed}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>🎯</div>
+            <h3 className={styles.featureTitle}>50+ DSA Problems</h3>
             <p className={styles.featureDesc}>
               Curated problem bank covering Arrays, Trees, Graphs, DP, and
-              more — all calibrated for Google new-grad level interviews.
+              more — all calibrated for FAANG new-grad level interviews.
             </p>
           </div>
         </div>
@@ -182,9 +149,7 @@ export default function Home() {
           <div className={styles.step}>
             <div className={styles.stepNumber}>2</div>
             <div className={styles.stepContent}>
-              <h3 className={styles.stepTitle}>
-                Interview with Your AI Interviewer
-              </h3>
+              <h3 className={styles.stepTitle}>Interview with Your AI Interviewer</h3>
               <p className={styles.stepDesc}>
                 Talk through your approach, write your solution in the code
                 editor, and run it against test cases. The AI provides hints
@@ -196,9 +161,7 @@ export default function Home() {
           <div className={styles.step}>
             <div className={styles.stepNumber}>3</div>
             <div className={styles.stepContent}>
-              <h3 className={styles.stepTitle}>
-                Review Detailed Feedback
-              </h3>
+              <h3 className={styles.stepTitle}>Review Detailed Feedback</h3>
               <p className={styles.stepDesc}>
                 After the session, receive a comprehensive report with scores
                 on code quality, communication, body language, and specific
@@ -210,30 +173,22 @@ export default function Home() {
       </section>
 
       {/* ---------- CTA ---------- */}
-      <section className={styles.cta}>
-        <div className={styles.ctaCard} suppressHydrationWarning>
+      <section className={styles.ctaSection}>
+        <div className={styles.ctaCard}>
           <h2 className={styles.ctaTitle}>Ready to Practice?</h2>
           <p className={styles.ctaDesc}>
-            Sign in with your Google account and start your first mock
-            interview in under a minute.
+            Sign in with your Google account and start your first FAANG
+            mock interview in under a minute.
           </p>
-          <Link
-            href="/login"
-            className="btn btn-primary btn-lg"
-            id="cta-bottom"
-            suppressHydrationWarning
-          >
-            Start Free Practice →
+          <Link href="/login" className={styles.ctaPrimary} id="cta-bottom">
+            Start Free Practice
           </Link>
         </div>
       </section>
 
       {/* ---------- Footer ---------- */}
-      <footer className={styles.footer} suppressHydrationWarning>
-        <p suppressHydrationWarning>
-          © {new Date().getFullYear()} FAANG Interview Prep AI — Built with
-          Gemini & Google ADK
-        </p>
+      <footer className={styles.footer}>
+        <p>© {new Date().getFullYear()} FAANG Prep AI — Built with Gemini</p>
       </footer>
     </div>
   );

@@ -1,62 +1,83 @@
 .dashboard {
   min-height: 100vh;
-  position: relative;
-  z-index: var(--z-base);
+  background: var(--bg-secondary);
 }
 
-/* ---------- Dashboard Navbar ---------- */
+/* ---------- Navbar ---------- */
 .dashNav {
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-8);
-  background: var(--surface-0);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 var(--space-8);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
 }
 
 .dashNavLogo {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.navBrand {
+  font-family: 'Roboto', 'Google Sans', sans-serif;
   font-weight: 700;
+  font-size: 20px;
   color: var(--text-primary);
 }
 
 .dashNavLogoIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #4285f4, #34a853, #fbbc04, #ea4335);
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 800;
-  color: white;
 }
 
 .dashNavRight {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
+
+.themeToggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.themeToggle:hover { background: var(--bg-secondary); }
 
 .userChip {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-2);
   border-radius: var(--radius-full);
   font-size: var(--text-sm);
+  color: var(--text-primary);
 }
 
 .userAvatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-blue);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,7 +93,7 @@
   object-fit: cover;
 }
 
-/* ---------- Dashboard Content ---------- */
+/* ---------- Content ---------- */
 .dashContent {
   max-width: 1100px;
   margin: 0 auto;
@@ -85,83 +106,82 @@
 }
 
 .dashWelcomeTitle {
-  font-size: var(--text-3xl);
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text-primary);
   margin-bottom: var(--space-2);
 }
 
 .dashWelcomeSub {
   color: var(--text-secondary);
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
 }
 
-/* ---------- Start Interview Section ---------- */
+/* ---------- Section Labels (Google Console style) ---------- */
 .startSection {
-  margin-bottom: var(--space-12);
+  margin-bottom: var(--space-10);
   animation: fadeInUp 0.6s ease-out;
 }
 
 .startSectionTitle {
-  font-size: var(--text-xl);
-  font-weight: 600;
-  margin-bottom: var(--space-6);
+  font-size: 11px;
+  font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: var(--text-sm);
+  letter-spacing: 1.5px;
+  margin-bottom: var(--space-4);
 }
 
+/* ---------- Interview Type Cards ---------- */
 .interviewTypes {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
 .interviewTypeCard {
-  padding: var(--space-8);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  transition: all 0.2s ease;
 }
 
-.interviewTypeCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
+.interviewTypeCard:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
 }
 
-.cardCoding::before {
-  background: linear-gradient(90deg, #4285f4, #34a853);
+.interviewTypeCardSelected {
+  border: 2px solid var(--accent-blue);
+  background: #E8F0FE;
 }
 
-.cardBehavioral::before {
-  background: linear-gradient(90deg, #fbbc04, #ea4335);
+[data-theme="dark"] .interviewTypeCardSelected {
+  background: rgba(26, 115, 232, 0.12);
 }
 
 .interviewTypeIcon {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-lg);
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
-  margin-bottom: var(--space-5);
+  font-size: 22px;
+  margin-bottom: var(--space-4);
 }
 
-.iconCoding {
-  background: rgba(66, 133, 244, 0.12);
-}
-
-.iconBehavioral {
-  background: rgba(251, 188, 4, 0.12);
-}
+.iconCoding    { background: rgba(26,115,232,0.12); }
+.iconBehavioral { background: rgba(52,168,83,0.12); }
 
 .interviewTypeTitle {
-  font-size: var(--text-xl);
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-primary);
   margin-bottom: var(--space-2);
 }
 
@@ -169,27 +189,41 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
 .interviewTypeTags {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-5);
 }
 
 .tag {
   padding: 2px var(--space-3);
-  background: var(--surface-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
 
+.companyPill {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #F1F3F4;
+  border-radius: 100px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+[data-theme="dark"] .companyPill {
+  background: rgba(255,255,255,0.08);
+}
+
 /* ---------- Config Section ---------- */
 .configSection {
-  margin-bottom: var(--space-12);
+  margin-bottom: var(--space-10);
   animation: fadeInUp 0.7s ease-out;
 }
 
@@ -200,14 +234,42 @@
 }
 
 .configCard {
-  padding: var(--space-6);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
 }
 
 .configLabel {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-3);
+  font-size: 11px;
   font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: var(--space-3);
+  display: block;
+}
+
+/* ---------- Start Button ---------- */
+.startBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 var(--space-8);
+  background: var(--accent-blue);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 24px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.startBtn:hover {
+  background: #1557B0;
+  box-shadow: var(--shadow-hover);
 }
 
 /* ---------- History Section ---------- */
@@ -218,55 +280,33 @@
 .historyEmpty {
   text-align: center;
   padding: var(--space-12);
-  color: var(--text-tertiary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
 }
 
 .historyEmptyIcon {
-  font-size: 48px;
+  font-size: 40px;
   margin-bottom: var(--space-4);
-  opacity: 0.5;
-}
-
-.historyList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  opacity: 0.4;
 }
 
 .historyItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-6);
-}
-
-.historyItemLeft {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--space-4);
+  transition: box-shadow 0.2s ease;
 }
-
-.historyDate {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-}
-
-.historyTitle {
-  font-weight: 500;
-}
-
-.historyScore {
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
+.historyItem:hover { box-shadow: var(--shadow-hover); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 768px) {
-  .interviewTypes {
-    grid-template-columns: 1fr;
-  }
-
-  .configGrid {
-    grid-template-columns: 1fr;
-  }
+  .interviewTypes { grid-template-columns: 1fr; }
+  .configGrid     { grid-template-columns: 1fr; }
+  .dashContent    { padding: var(--space-6) var(--space-4); }
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { NavBrand } from "@/components/NavBrand";
 import styles from "./feedback.module.css";
 
 // Default feedback (fallback if sessionStorage has nothing)
@@ -104,7 +105,7 @@ function FeedbackContent() {
 
   if (loading || !feedback) {
     return (
-      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--surface-ground)" }}>
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-secondary)" }}>
         <div className="google-dots">
           <div className="dot"></div><div className="dot"></div><div className="dot"></div><div className="dot"></div>
         </div>
@@ -119,8 +120,8 @@ function FeedbackContent() {
       {/* Navbar */}
       <nav className={styles.feedbackNav}>
         <div className={styles.feedbackNavLogo}>
-          <div className={styles.feedbackNavLogoIcon}>G</div>
-          Interview Prep AI — Feedback Report
+          <NavBrand />
+          <span className={styles.feedbackNavSuffix}>— Feedback Report</span>
         </div>
         <Link href="/dashboard" className="btn btn-ghost btn-sm">
           ← Back to Dashboard
@@ -151,7 +152,7 @@ function FeedbackContent() {
         {/* ---------- Coding Assessment ---------- */}
         {hasCoding && (
         <div className={styles.feedbackSection}>
-          <div className={`card ${styles.sectionCard}`}>
+          <div className={styles.sectionCard}>
             <div className={styles.sectionTitleRow}>
               <div
                 className={styles.sectionIcon}
@@ -258,15 +259,15 @@ function FeedbackContent() {
             
             {/* Side-by-side Code Comparison */}
             <div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <div style={{ background: "#1e1e1e", padding: "16px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", color: "var(--color-primary-light)" }}>Your Code</h4>
-                <pre style={{ margin: 0, padding: 0, overflowX: "auto", fontSize: "13px", lineHeight: 1.5, color: "#d4d4d4", fontFamily: "monospace" }}>
+              <div style={{ background: "var(--surface-1)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1.5px" }}>Your Code</h4>
+                <pre style={{ margin: 0, padding: 0, overflowX: "auto", fontSize: "13px", lineHeight: 1.5, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
                   <code>{feedback.coding.userCode || "(No code provided)"}</code>
                 </pre>
               </div>
-              <div style={{ background: "#1e1e1e", padding: "16px", borderRadius: "8px", border: "1px solid rgba(52, 168, 83, 0.3)" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", color: "var(--color-success)" }}>Optimal Solution</h4>
-                <pre style={{ margin: 0, padding: 0, overflowX: "auto", fontSize: "13px", lineHeight: 1.5, color: "#d4d4d4", fontFamily: "monospace" }}>
+              <div style={{ background: "var(--surface-1)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 500, color: "var(--accent-green)", textTransform: "uppercase", letterSpacing: "1.5px" }}>Optimal Solution</h4>
+                <pre style={{ margin: 0, padding: 0, overflowX: "auto", fontSize: "13px", lineHeight: 1.5, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
                   <code>{feedback.coding.optimalCode || "(No optimal code generated)"}</code>
                 </pre>
               </div>
@@ -278,7 +279,7 @@ function FeedbackContent() {
 
         {/* ---------- Communication ---------- */}
         <div className={styles.feedbackSection}>
-          <div className={`card ${styles.sectionCard}`}>
+          <div className={styles.sectionCard}>
             <div className={styles.sectionTitleRow}>
               <div
                 className={styles.sectionIcon}
@@ -340,7 +341,7 @@ function FeedbackContent() {
 
         {/* ---------- Engagement & Body Language ---------- */}
         <div className={styles.feedbackSection}>
-          <div className={`card ${styles.sectionCard}`}>
+          <div className={styles.sectionCard}>
             <div className={styles.sectionTitleRow}>
               <div
                 className={styles.sectionIcon}
@@ -389,7 +390,7 @@ function FeedbackContent() {
 
         {/* ---------- Recommendations ---------- */}
         <div className={styles.feedbackSection}>
-          <div className={`card ${styles.sectionCard}`}>
+          <div className={styles.sectionCard}>
             <div className={styles.sectionTitleRow}>
               <div
                 className={styles.sectionIcon}
@@ -439,7 +440,7 @@ export default function FeedbackPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "var(--surface-ground)",
+            background: "var(--bg-secondary)",
           }}
         >
           <div className="google-dots">

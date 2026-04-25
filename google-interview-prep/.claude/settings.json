@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/code-review-graph",
+      "args": ["serve"],
+      "env": {
+        "REPO_ROOT": "/Users/shivendrabhagat/Documents/GitHub Projects/Interview_prep/google-interview-prep"
+      }
+    }
+  }
+}

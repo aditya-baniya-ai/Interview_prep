@@ -13,6 +13,7 @@ import {
 import { GeminiLiveClient } from "@/lib/gemini-live";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import { NavBrand } from "@/components/NavBrand";
 import styles from "./interview.module.css";
 
 // Dynamic import Monaco Editor (no SSR)
@@ -473,8 +474,7 @@ function InterviewContent() {
       <nav className={styles.interviewNav} id="interview-nav">
         <div className={styles.navLeft}>
           <div className={styles.navLogo}>
-            <div className={styles.navLogoIcon}>G</div>
-            Interview Prep
+            <NavBrand forceDark />
           </div>
           <span className={styles.interviewType}>
             {interviewType === "coding" ? "💻 Coding" : "🗣️ Behavioral"}
@@ -798,7 +798,7 @@ export default function InterviewPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "var(--surface-ground)",
+            background: "#202124",
           }}
         >
           <div className="google-dots">
