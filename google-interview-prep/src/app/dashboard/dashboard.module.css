@@ -27,6 +27,13 @@
   color: var(--text-primary);
 }
 
+.navBrand {
+  font-family: 'Roboto', 'Google Sans', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
 .dashNavLogoIcon {
   width: 28px;
   height: 28px;

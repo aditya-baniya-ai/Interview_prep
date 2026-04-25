@@ -1,14 +1,13 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import { ThemeToggle } from "@/lib/theme";
-import { FaangLogoCluster, LOGO_URLS } from "@/components/FaangLogos";
 
 export default function Home() {
   return (
     <div className={styles.landing}>
       {/* ---------- Navbar ---------- */}
       <nav className={styles.navbar} id="main-nav">
-        <FaangLogoCluster />
+        <span className={styles.navBrand}>FAANG Prep</span>
         <div className={styles.navActions}>
           <ThemeToggle className={styles.themeToggle} />
           <Link href="/login" className={styles.signInBtn}>
@@ -45,36 +44,6 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* ---------- Ticker ---------- */}
-        <div className={styles.ticker}>
-          <div className={styles.tickerTrack}>
-            {[0, 1].map((i) => (
-              <div key={i} className={styles.tickerItems} aria-hidden={i === 1}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={LOGO_URLS.google}  height={24} width={24} alt="Google"  className={styles.tickerLogo} />
-                <span className={styles.tickerName}>Google</span>
-                <span className={styles.tickerDivider} />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={LOGO_URLS.amazon}  height={24} width={58} alt="Amazon"  className={styles.tickerLogo} />
-                <span className={styles.tickerName}>Amazon</span>
-                <span className={styles.tickerDivider} />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={LOGO_URLS.meta}    height={24} width={58} alt="Meta"    className={styles.tickerLogo} />
-                <span className={styles.tickerName}>Meta</span>
-                <span className={styles.tickerDivider} />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={LOGO_URLS.apple}   height={24} width={20} alt="Apple"   className={`${styles.tickerLogo} ${styles.tickerApple}`} />
-                <span className={styles.tickerName}>Apple</span>
-                <span className={styles.tickerDivider} />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={LOGO_URLS.netflix} height={24} width={48} alt="Netflix" className={styles.tickerLogo} />
-                <span className={styles.tickerName}>Netflix</span>
-                <span className={styles.tickerDivider} />
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className={styles.heroStats}>
           <div className={styles.stat}>
             <div className={styles.statValue}>Real-time</div>
@@ -100,9 +69,7 @@ export default function Home() {
         </p>
 
         <div className={styles.featureGrid}>
-          <div className={`${styles.featureCard} ${styles.accentNetflix}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URLS.netflix} alt="" aria-hidden="true" className={styles.featureWatermark} />
+          <div className={`${styles.featureCard} ${styles.accentRed}`}>
             <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>🎤</div>
             <h3 className={styles.featureTitle}>Real-Time Voice Conversation</h3>
             <p className={styles.featureDesc}>
@@ -112,9 +79,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`${styles.featureCard} ${styles.accentAmazon}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URLS.amazon} alt="" aria-hidden="true" className={styles.featureWatermark} />
+          <div className={`${styles.featureCard} ${styles.accentYellow}`}>
             <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>💻</div>
             <h3 className={styles.featureTitle}>Live Code Execution</h3>
             <p className={styles.featureDesc}>
@@ -123,10 +88,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`${styles.featureCard} ${styles.accentBlue}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URLS.google} alt="" aria-hidden="true" className={styles.featureWatermark} />
-            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>📹</div>
+          <div className={`${styles.featureCard} ${styles.accentGreen}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconGreen}`}>📹</div>
             <h3 className={styles.featureTitle}>Webcam Integration</h3>
             <p className={styles.featureDesc}>
               The AI observes your body language and engagement level through
@@ -134,10 +97,8 @@ export default function Home() {
             </p>
           </div>
 
-          <div className={`${styles.featureCard} ${styles.accentMeta}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URLS.meta} alt="" aria-hidden="true" className={styles.featureWatermark} />
-            <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>🧠</div>
+          <div className={`${styles.featureCard} ${styles.accentYellow}`}>
+            <div className={`${styles.featureIcon} ${styles.featureIconYellow}`}>🧠</div>
             <h3 className={styles.featureTitle}>Adaptive Intelligence</h3>
             <p className={styles.featureDesc}>
               The AI adjusts difficulty and gives hints progressively, just like
@@ -146,8 +107,6 @@ export default function Home() {
           </div>
 
           <div className={`${styles.featureCard} ${styles.accentBlue}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URLS.apple} alt="" aria-hidden="true" className={`${styles.featureWatermark} ${styles.featureWatermarkApple}`} />
             <div className={`${styles.featureIcon} ${styles.featureIconBlue}`}>📊</div>
             <h3 className={styles.featureTitle}>Comprehensive Feedback</h3>
             <p className={styles.featureDesc}>
@@ -157,8 +116,6 @@ export default function Home() {
           </div>
 
           <div className={`${styles.featureCard} ${styles.accentRed}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URLS.google} alt="" aria-hidden="true" className={styles.featureWatermark} />
             <div className={`${styles.featureIcon} ${styles.featureIconRed}`}>🎯</div>
             <h3 className={styles.featureTitle}>50+ DSA Problems</h3>
             <p className={styles.featureDesc}>

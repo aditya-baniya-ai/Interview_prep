@@ -35,6 +35,13 @@
   justify-content: center;
 }
 
+.feedbackNavBrand {
+  font-family: 'Roboto', 'Google Sans', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
 .feedbackNavSuffix {
   font-family: var(--font-sans);
   font-size: var(--text-base);

@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { ThemeToggle } from "@/lib/theme";
-import { FaangLogoCluster, FaangBanner } from "@/components/FaangLogos";
 import styles from "./dashboard.module.css";
 
 const LANGUAGES = ["python", "javascript", "java", "cpp"];
@@ -107,7 +106,7 @@ export default function DashboardPage() {
     <div className={styles.dashboard}>
       {/* ---------- Navbar ---------- */}
       <nav className={styles.dashNav} id="dashboard-nav">
-        <FaangLogoCluster />
+        <span className={styles.navBrand}>FAANG Prep</span>
         <div className={styles.dashNavRight}>
           <ThemeToggle className={styles.themeToggle} />
           <div className={styles.userChip}>
@@ -129,8 +128,6 @@ export default function DashboardPage() {
           </button>
         </div>
       </nav>
-
-      <FaangBanner />
 
       {/* ---------- Content ---------- */}
       <main className={styles.dashContent}>

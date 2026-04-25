@@ -13,7 +13,6 @@ import {
 import { GeminiLiveClient } from "@/lib/gemini-live";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
-import { FaangLogoCluster } from "@/components/FaangLogos";
 import styles from "./interview.module.css";
 
 // Dynamic import Monaco Editor (no SSR)
@@ -379,7 +378,7 @@ function InterviewContent() {
       <nav className={styles.interviewNav} id="interview-nav">
         <div className={styles.navLeft}>
           <div className={styles.navLogo}>
-            <FaangLogoCluster forceDark />
+            <span className={styles.navBrand}>FAANG Prep</span>
           </div>
           <span className={styles.interviewType}>
             {interviewType === "coding" ? "💻 Coding" : "🗣️ Behavioral"}

@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { FaangLogoCluster } from "@/components/FaangLogos";
 import styles from "./feedback.module.css";
 
 // Default feedback (fallback if sessionStorage has nothing)
@@ -120,7 +119,7 @@ function FeedbackContent() {
       {/* Navbar */}
       <nav className={styles.feedbackNav}>
         <div className={styles.feedbackNavLogo}>
-          <FaangLogoCluster />
+          <span className={styles.feedbackNavBrand}>FAANG Prep</span>
           <span className={styles.feedbackNavSuffix}>— Feedback Report</span>
         </div>
         <Link href="/dashboard" className="btn btn-ghost btn-sm">
