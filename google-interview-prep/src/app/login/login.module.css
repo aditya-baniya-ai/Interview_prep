@@ -1,0 +1,131 @@
+.loginPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: var(--z-base);
+  padding: var(--space-4);
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-12);
+  text-align: center;
+  animation: scaleIn 0.4s ease-out;
+}
+
+.loginLogo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-10);
+}
+
+.loginLogoIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #4285f4, #34a853, #fbbc04, #ea4335);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+}
+
+.loginLogoText {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.loginTitle {
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-2);
+}
+
+.loginSub {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-8);
+}
+
+.googleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  background: white;
+  color: #1f1f1f;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-md);
+}
+
+.googleBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.googleBtn:active {
+  transform: scale(0.98);
+}
+
+.googleBtnIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.loginDivider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.loginDivider::before,
+.loginDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-default);
+}
+
+.loginFooter {
+  margin-top: var(--space-8);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-relaxed);
+}
+
+.loadingSpinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.loginError {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(234, 67, 53, 0.1);
+  border: 1px solid rgba(234, 67, 53, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--status-error);
+  font-size: var(--text-sm);
+}

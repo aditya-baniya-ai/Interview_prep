@@ -1,0 +1,274 @@
+.feedbackPage {
+  min-height: 100vh;
+  position: relative;
+  z-index: var(--z-base);
+  background: var(--surface-ground);
+}
+
+.feedbackNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-8);
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.feedbackNavLogo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.feedbackNavLogoIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #4285f4, #34a853, #fbbc04, #ea4335);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: white;
+}
+
+.feedbackContent {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-8);
+}
+
+/* ---------- Overall Score Header ---------- */
+.overallHeader {
+  text-align: center;
+  margin-bottom: var(--space-12);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.overallTitle {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-2);
+}
+
+.overallSub {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-8);
+}
+
+.overallScore {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  position: relative;
+}
+
+.scoreCircle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  font-family: var(--font-display);
+  position: relative;
+}
+
+.scoreHire {
+  background: linear-gradient(135deg, rgba(52, 168, 83, 0.15), rgba(52, 168, 83, 0.05));
+  border: 3px solid var(--status-success);
+  color: var(--status-success);
+  box-shadow: 0 0 40px rgba(52, 168, 83, 0.2);
+}
+
+.scoreLeanHire {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.15), rgba(66, 133, 244, 0.05));
+  border: 3px solid var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 40px rgba(66, 133, 244, 0.2);
+}
+
+.scoreLeanNoHire {
+  background: linear-gradient(135deg, rgba(251, 188, 4, 0.15), rgba(251, 188, 4, 0.05));
+  border: 3px solid var(--color-accent-yellow);
+  color: var(--color-accent-yellow);
+  box-shadow: 0 0 40px rgba(251, 188, 4, 0.2);
+}
+
+.scoreNoHire {
+  background: linear-gradient(135deg, rgba(234, 67, 53, 0.15), rgba(234, 67, 53, 0.05));
+  border: 3px solid var(--status-error);
+  color: var(--status-error);
+  box-shadow: 0 0 40px rgba(234, 67, 53, 0.2);
+}
+
+.scoreDecision {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-top: var(--space-3);
+}
+
+.scoreLabel {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ---------- Feedback Sections ---------- */
+.feedbackSection {
+  margin-bottom: var(--space-8);
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.sectionCard {
+  padding: var(--space-6);
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.sectionIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.sectionTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+/* Score Bars */
+.scoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.scoreLabel2 {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  width: 200px;
+}
+
+.scoreBarContainer {
+  flex: 1;
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: var(--radius-full);
+  margin: 0 var(--space-4);
+  overflow: hidden;
+}
+
+.scoreBar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 1s ease-out;
+}
+
+.scoreBarGood {
+  background: linear-gradient(90deg, #34a853, #5bb974);
+}
+
+.scoreBarOkay {
+  background: linear-gradient(90deg, #fbbc04, #fdd663);
+}
+
+.scoreBarPoor {
+  background: linear-gradient(90deg, #ea4335, #f28b82);
+}
+
+.scoreValue {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  width: 40px;
+  text-align: right;
+}
+
+/* Complexity Info */
+.complexityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.complexityItem {
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+
+.complexityLabel {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.complexityValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.complexityOptimal {
+  color: var(--status-success);
+}
+
+.complexitySuboptimal {
+  color: var(--color-accent-yellow);
+}
+
+/* Recommendations */
+.recList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+.recIcon {
+  font-size: var(--text-base);
+  min-width: 20px;
+}
+
+/* Actions */
+.feedbackActions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-12);
+  padding-bottom: var(--space-12);
+  animation: fadeInUp 0.9s ease-out;
+}
