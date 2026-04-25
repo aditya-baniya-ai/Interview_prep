@@ -1,13 +1,14 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import { ThemeToggle } from "@/lib/theme";
+import { NavBrand } from "@/components/NavBrand";
 
 export default function Home() {
   return (
     <div className={styles.landing}>
       {/* ---------- Navbar ---------- */}
       <nav className={styles.navbar} id="main-nav">
-        <span className={styles.navBrand}>FAANG Prep</span>
+        <NavBrand />
         <div className={styles.navActions}>
           <ThemeToggle className={styles.themeToggle} />
           <Link href="/login" className={styles.signInBtn}>

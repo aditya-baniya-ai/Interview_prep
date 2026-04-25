@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { NavBrand } from "@/components/NavBrand";
 import styles from "./login.module.css";
 
 export default function LoginPage() {
@@ -41,7 +42,7 @@ export default function LoginPage() {
     <div className={styles.loginPage}>
       <div className={styles.loginCard}>
         <div className={styles.loginLogo}>
-          <span className={styles.loginBrand}>FAANG Prep</span>
+          <NavBrand />
         </div>
 
         <h1 className={styles.loginTitle}>Welcome Back</h1>

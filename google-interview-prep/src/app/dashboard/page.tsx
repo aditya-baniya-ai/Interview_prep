@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { ThemeToggle } from "@/lib/theme";
+import { NavBrand } from "@/components/NavBrand";
 import styles from "./dashboard.module.css";
 
 const LANGUAGES = ["python", "javascript", "java", "cpp"];
@@ -106,7 +107,7 @@ export default function DashboardPage() {
     <div className={styles.dashboard}>
       {/* ---------- Navbar ---------- */}
       <nav className={styles.dashNav} id="dashboard-nav">
-        <span className={styles.navBrand}>FAANG Prep</span>
+        <NavBrand />
         <div className={styles.dashNavRight}>
           <ThemeToggle className={styles.themeToggle} />
           <div className={styles.userChip}>
