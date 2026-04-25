@@ -184,7 +184,7 @@ An inline `<script>` in `<head>` reads `localStorage` synchronously before React
 
 ## Built By
 
-**Shivendra Bhagat** — Built for the Launchd Build Sprint Hackathon
+Shivendra Bhagat · Saurav Rijal · Aaditya Baniya
 
 ---
 
