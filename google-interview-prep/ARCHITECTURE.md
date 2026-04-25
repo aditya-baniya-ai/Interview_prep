@@ -1,4 +1,4 @@
-# Google Interview Prep AI — Full Architecture & Features Documentation
+# FAANG Interview Prep AI — Full Architecture & Features Documentation
 
 ## Overview
 

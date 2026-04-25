@@ -1,5 +1,5 @@
 """
-Google Interview Prep AI — FastAPI Backend Server
+FAANG Interview Prep AI — FastAPI Backend Server
 
 Main server that handles:
 - WebSocket connections for real-time interview sessions
@@ -85,7 +85,7 @@ active_connections: Dict[str, WebSocket] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle manager."""
-    logger.info("🚀 Google Interview Prep AI Backend starting...")
+    logger.info("🚀 FAANG Interview Prep AI Backend starting...")
     logger.info(f"📡 CORS origins: {CORS_ORIGINS}")
     yield
     logger.info("👋 Backend shutting down...")
@@ -94,8 +94,8 @@ async def lifespan(app: FastAPI):
 # ──────────── FastAPI App ────────────
 
 app = FastAPI(
-    title="Google Interview Prep AI",
-    description="Backend API for AI-powered Google interview preparation",
+    title="FAANG Interview Prep AI",
+    description="Backend API for AI-powered FAANG interview preparation",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -115,7 +115,7 @@ app.add_middleware(
 async def root():
     """Health check endpoint."""
     return {
-        "service": "Google Interview Prep AI",
+        "service": "FAANG Interview Prep AI",
         "status": "running",
         "version": "1.0.0",
     }
@@ -310,8 +310,9 @@ async def generate_feedback(session_id: str, request: FeedbackRequest):
 ```
 """
 
-    prompt = f"""You are a senior Google interviewer evaluating a candidate's {request.interview_type} interview performance.
-Analyze the following interview transcript and provide a detailed, honest evaluation.
+    prompt = f"""You are a Staff Software Engineer at Google serving as a Bar Raiser. You are strictly evaluating a candidate's {request.interview_type} interview performance.
+Analyze the following interview transcript meticulously. Your job is to provide a comprehensive, rigorous, and highly actionable evaluation based on Google's actual hiring rubrics.
+Look for signal on: technical depth, problem-solving structuring, communication clarity, edge-case detection, leadership (for behavioral), and coding efficiency (for coding).
 
 ## Interview Transcript:
 {transcript_text}
@@ -334,16 +335,15 @@ Please respond with ONLY a valid JSON object (no markdown, no extra text) with t
     "confidence": <1-5>
   }},
   "recommendations": [
-    "<specific actionable recommendation 1>",
-    "<specific actionable recommendation 2>",
-    "<specific actionable recommendation 3>",
-    "<specific actionable recommendation 4>",
-    "<specific actionable recommendation 5>"
-  ]{"," + chr(10) + '  "coding": {' + chr(10) + '    "problemSolving": <1-5>,' + chr(10) + '    "codeCorrectness": <1-5>,' + chr(10) + '    "codeQuality": <1-5>,' + chr(10) + '    "timeComplexity": "<detected>",' + chr(10) + '    "optimalTimeComplexity": "<optimal>",' + chr(10) + '    "spaceComplexity": "<detected>",' + chr(10) + '    "optimalSpaceComplexity": "<optimal>",' + chr(10) + '    "userCode": "<exactly the candidate code>",' + chr(10) + '    "optimalCode": "<the correct optimal code snippet in the same language>"' + chr(10) + '  }' if request.interview_type == "coding" else ""}
+    "<detailed actionable recommendation 1 - focusing on root cause>",
+    "<detailed actionable recommendation 2>",
+    "<detailed actionable recommendation 3>",
+    "<detailed actionable recommendation 4>",
+    "<detailed actionable recommendation 5>"
+  ]{"," + chr(10) + '  "coding": {' + chr(10) + '    "problemSolving": <1-5>,' + chr(10) + '    "codeCorrectness": <1-5>,' + chr(10) + '    "codeQuality": <1-5>,' + chr(10) + '    "timeComplexity": "<detected>",' + chr(10) + '    "optimalTimeComplexity": "<optimal>",' + chr(10) + '    "spaceComplexity": "<detected>",' + chr(10) + '    "optimalSpaceComplexity": "<optimal>",' + chr(10) + '    "optimalCode": "<flawless optimal code snippet solving the problem constraints>"' + chr(10) + '  }' if request.interview_type == "coding" else ""}
 }}
 
-Base your scores on the ACTUAL conversation content. Be honest and constructive.
-If the interview was short or had minimal content, score accordingly (lower scores).
+Take a deep breath and analyze everything carefully. Base your scores exclusively on the ACTUAL conversation content and code provided. Do not be overly nice; give constructive, elite Google-level feedback.
 """
 
     try:
@@ -369,13 +369,16 @@ If the interview was short or had minimal content, score accordingly (lower scor
         feedback = json_module.loads(response_text)
 
         # Add coding defaults if missing for coding interviews
-        if request.interview_type == "coding" and "coding" not in feedback:
-            feedback["coding"] = {
-                "problemSolving": 3, "codeCorrectness": 3, "codeQuality": 3,
-                "timeComplexity": "N/A", "optimalTimeComplexity": "N/A",
-                "spaceComplexity": "N/A", "optimalSpaceComplexity": "N/A",
-                "testCasesPassed": 0, "totalTestCases": 10,
-            }
+        if request.interview_type == "coding":
+            if "coding" not in feedback:
+                feedback["coding"] = {
+                    "problemSolving": 3, "codeCorrectness": 3, "codeQuality": 3,
+                    "timeComplexity": "N/A", "optimalTimeComplexity": "N/A",
+                    "spaceComplexity": "N/A", "optimalSpaceComplexity": "N/A",
+                    "testCasesPassed": 0, "totalTestCases": 10,
+                }
+            # Inject user code manually to save Gemini generation tokens
+            feedback["coding"]["userCode"] = request.code or ""
 
         # Store in session
         session = sessions.get(session_id)

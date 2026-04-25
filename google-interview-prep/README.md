@@ -1,4 +1,4 @@
-# Google Interview Prep AI
+# FAANG Interview Prep AI
 
 An immersive, real-time mock interview application designed to help candidates prepare for Google software engineering and behavioral interviews. The application features a fully interactive AI interviewer ("Sarah") capable of real-time voice conversation, code analysis, and dynamic feedback generation powered by the Gemini Live API.
 

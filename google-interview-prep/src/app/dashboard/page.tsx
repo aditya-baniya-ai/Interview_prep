@@ -21,7 +21,7 @@ export default function DashboardPage() {
     "coding"
   );
 
-  const availableDurations = interviewType === "coding" ? [30] : [5];
+  const availableDurations = interviewType === "coding" ? [5, 10, 20, 30, 45] : [5];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pastSessions, setPastSessions] = useState<any[]>([]);
 
@@ -137,7 +137,7 @@ export default function DashboardPage() {
             Welcome, {user.displayName?.split(" ")[0] || "there"} 👋
           </h1>
           <p className={styles.dashWelcomeSub}>
-            Ready to practice for your Google interview? Choose your session
+            Ready to practice for your FAANG interview? Choose your session
             type below.
           </p>
         </div>

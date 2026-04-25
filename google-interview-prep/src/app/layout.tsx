@@ -3,11 +3,11 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Google Interview Prep AI",
+  title: "FAANG Interview Prep AI",
   description:
     "AI-powered mock interview preparation for Google new-grad roles. Real-time voice conversations, live code execution, and comprehensive feedback.",
   keywords: [
-    "Google interview",
+    "FAANG interview",
     "coding interview",
     "interview prep",
     "AI interviewer",
@@ -15,9 +15,9 @@ export const metadata: Metadata = {
     "DSA practice",
   ],
   openGraph: {
-    title: "Google Interview Prep AI",
+    title: "FAANG Interview Prep AI",
     description:
-      "Practice Google interviews with a multimodal AI interviewer that speaks, listens, and evaluates your code in real-time.",
+      "Practice FAANG interviews with a multimodal AI interviewer that speaks, listens, and evaluates your code in real-time.",
     type: "website",
   },
 };

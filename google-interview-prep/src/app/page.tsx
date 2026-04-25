@@ -29,14 +29,14 @@ export default function Home() {
 
         <h1 className={styles.heroTitle}>
           Ace Your{" "}
-          <span className={styles.heroGradient}>Google Interview</span>
+          <span className={styles.heroGradient}>FAANG Interview</span>
           <br />
           With AI Practice
         </h1>
 
         <p className={styles.heroDesc}>
           Practice with an AI interviewer that speaks, listens, and evaluates
-          your code in real-time — just like a real Google interview. Get
+          your code in real-time — just like a real FAANG interview. Get
           instant feedback on your coding, communication, and problem-solving
           skills.
         </p>
@@ -128,7 +128,7 @@ export default function Home() {
             <h3 className={styles.featureTitle}>Adaptive Intelligence</h3>
             <p className={styles.featureDesc}>
               The AI adjusts difficulty and gives hints progressively, just like
-              a real Google interviewer would. It follows up on your approach.
+              a real FAANG interviewer would. It follows up on your approach.
             </p>
           </div>
 
@@ -228,7 +228,7 @@ export default function Home() {
       {/* ---------- Footer ---------- */}
       <footer className={styles.footer}>
         <p>
-          © {new Date().getFullYear()} Google Interview Prep AI — Built with
+          © {new Date().getFullYear()} FAANG Interview Prep AI — Built with
           Gemini & Google ADK
         </p>
       </footer>

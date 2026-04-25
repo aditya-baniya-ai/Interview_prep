@@ -75,6 +75,7 @@ function InterviewContent() {
   >("idle");
   const [showEndModal, setShowEndModal] = useState(false);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [isRunningCode, setIsRunningCode] = useState(false);
   const [isAvatarMouthOpen, setIsAvatarMouthOpen] = useState(false);
 
@@ -302,22 +303,20 @@ function InterviewContent() {
         // Store in sessionStorage for fast immediate loading
         sessionStorage.setItem(`feedback_${sessionId}`, JSON.stringify(feedback));
 
-        // Persist to Firestore
+        // Persist to Firestore (Fire and forget so it never blocks routing)
         if (user && db) {
-          try {
-            await setDoc(doc(db, "users", user.uid, "sessions", sessionId), {
-              sessionId,
-              interviewType,
-              createdAt: new Date().toISOString(),
-              durationMinutes,
-              language: interviewType === "coding" ? selectedLanguage : null,
-              code: interviewType === "coding" ? code : null,
-              transcript: transcriptRef.current,
-              feedback,
-            });
-          } catch (dbErr) {
+          setDoc(doc(db, "users", user.uid, "sessions", sessionId), {
+            sessionId,
+            interviewType,
+            createdAt: new Date().toISOString(),
+            durationMinutes,
+            language: interviewType === "coding" ? selectedLanguage : null,
+            code: interviewType === "coding" ? code : null,
+            transcript: transcriptRef.current,
+            feedback,
+          }).catch((dbErr) => {
             console.error("Failed to save session to Firestore:", dbErr);
-          }
+          });
         }
       }
     } catch (err) {
@@ -349,6 +348,25 @@ function InterviewContent() {
     setCode(DEFAULT_CODE[newLang] || DEFAULT_CODE.python);
   };
 
+  const loadingSteps = [
+    "Uploading secure transcript...",
+    "Gemini 2.5 analyzing code architecture...",
+    "Evaluating communication & behavioral cues...",
+    "Compiling algorithmic complexity analysis...",
+    "Generating actionable recommendations...",
+    "Finalizing mock Google Hiring Decision...",
+  ];
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isGeneratingFeedback) {
+      interval = setInterval(() => {
+        setLoadingStepIndex((prev) => Math.min(prev + 1, loadingSteps.length - 1));
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [isGeneratingFeedback]);
+
   // Loading states
   if (isGeneratingFeedback) {
     return (
@@ -360,10 +378,10 @@ function InterviewContent() {
           <div className="dot"></div>
         </div>
         <p className={styles.feedbackGeneratingText}>
-          Generating Your Feedback Report
+          {loadingSteps[loadingStepIndex]}
         </p>
         <p className={styles.feedbackGeneratingSub}>
-          Analyzing code quality, communication, and overall performance...
+          This deep AI analysis usually takes 5-10 seconds.
         </p>
       </div>
     );

@@ -47,7 +47,7 @@ export default function LoginPage() {
 
         <h1 className={styles.loginTitle}>Welcome Back</h1>
         <p className={styles.loginSub}>
-          Sign in to start practicing for your Google interview
+          Sign in to start practicing for your FAANG interview
         </p>
 
         <button
