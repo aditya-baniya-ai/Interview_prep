@@ -264,11 +264,12 @@
 .transcriptFeed {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 20px 20px 50vh 20px;
   display: flex;
   flex-direction: column;
   gap: 24px;
   scrollbar-width: none;
+  scroll-behavior: smooth;
 }
 
 .transcriptFeed::-webkit-scrollbar {
@@ -299,6 +300,22 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.35);
+}
+
+/* AI Colors */
+.speakerAi {
+  color: #8ab4f8; /* Google Blue Light */
+}
+.textAi {
+  color: #e8f0fe;
+}
+
+/* User Colors */
+.speakerUser {
+  color: #fbbc04; /* Google Yellow */
+}
+.textUser {
+  color: #fef7e0;
 }
 
 .transcriptText {

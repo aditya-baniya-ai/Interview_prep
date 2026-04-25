@@ -76,7 +76,8 @@ function InterviewContent() {
   const [phase, setPhase] = useState<"behavioral" | "transitioning" | "coding">(
     interviewType === "coding" ? "coding" : "behavioral"
   );
-  const [interimEntry, setInterimEntry] = useState<{ speaker: string; text: string } | null>(null);
+  const [userInterim, setUserInterim] = useState<string>("");
+  const [aiInterim, setAiInterim] = useState<string>("");
   const [showEndModal, setShowEndModal] = useState(false);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
@@ -139,7 +140,7 @@ function InterviewContent() {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
-  }, [transcript]);
+  }, [transcript, userInterim, aiInterim]);
 
   // Initialize webcam
   const startWebcam = useCallback(async () => {
@@ -183,10 +184,12 @@ function InterviewContent() {
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
         if (!isFinal) {
-          setInterimEntry({ speaker: sp, text });
+          if (sp === "user") setUserInterim(text);
+          else setAiInterim(text);
           return;
         }
-        setInterimEntry(null);
+        if (sp === "user") setUserInterim("");
+        else setAiInterim("");
         const entry = { speaker: sp, text, timestamp: Date.now() };
         setTranscript((prev) => [...prev, entry]);
         transcriptRef.current = [...transcriptRef.current, entry];
@@ -225,6 +228,42 @@ function InterviewContent() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Local Web Speech API for instant visual transcription (interim only)
+  useEffect(() => {
+    if (!isMicActive || typeof window === "undefined") return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (!event.results[i].isFinal) {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (interimTranscript.trim() !== "") {
+        setUserInterim(interimTranscript);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      // Ignore if recognition is already started
+    }
+
+    return () => {
+      recognition.stop();
+    };
+  }, [isMicActive]);
 
   // Code snapshot debounce — send code context to AI every 10s
   useEffect(() => {
@@ -473,6 +512,7 @@ function InterviewContent() {
               className="btn btn-primary btn-sm"
               onClick={handleTransitionToCoding}
               style={{ marginRight: "8px" }}
+              suppressHydrationWarning
             >
               Move to Coding Round →
             </button>
@@ -481,6 +521,7 @@ function InterviewContent() {
             className="btn btn-danger btn-sm"
             onClick={() => setShowEndModal(true)}
             id="end-interview-btn"
+            suppressHydrationWarning
           >
             End Interview
           </button>
@@ -513,26 +554,29 @@ function InterviewContent() {
               Transcript
             </div>
             <div className={styles.transcriptFeed} ref={chatContainerRef}>
-              {transcript.length === 0 && !interimEntry && (
+              {transcript.length === 0 && !userInterim && !aiInterim && (
                 <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
               )}
               {transcript.map((entry, i) => (
                 <div key={i} className={styles.transcriptEntry}>
-                  <span className={styles.transcriptSpeaker}>
+                  <span className={`${styles.transcriptSpeaker} ${entry.speaker === "interviewer" ? styles.speakerAi : styles.speakerUser}`}>
                     {entry.speaker === "interviewer" ? "Sarah" : "You"}
                   </span>
-                  <p className={styles.transcriptText}>{entry.text}</p>
+                  <p className={`${styles.transcriptText} ${entry.speaker === "interviewer" ? styles.textAi : styles.textUser}`}>
+                    {entry.text}
+                  </p>
                 </div>
               ))}
-              {interimEntry && (
+              {userInterim && (
                 <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
-                  <span className={styles.transcriptSpeaker}>
-                    {interimEntry.speaker === "interviewer" ? "Sarah" : "You"}
-                  </span>
-                  <p className={styles.transcriptText}>
-                    {interimEntry.text}
-                    <span className={styles.transcriptCursor} />
-                  </p>
+                  <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
+                  <p className={`${styles.transcriptText} ${styles.textUser}`}>{userInterim}<span className={styles.transcriptCursor} /></p>
+                </div>
+              )}
+              {aiInterim && (
+                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+                  <span className={`${styles.transcriptSpeaker} ${styles.speakerAi}`}>Sarah</span>
+                  <p className={`${styles.transcriptText} ${styles.textAi}`}>{aiInterim}<span className={styles.transcriptCursor} /></p>
                 </div>
               )}
             </div>
@@ -584,6 +628,7 @@ function InterviewContent() {
                 className={`${styles.controlBtn} ${!isMicActive ? styles.controlBtnMuted : ""}`}
                 onClick={toggleMic}
                 title={isMicActive ? "Mute microphone" : "Unmute microphone"}
+                suppressHydrationWarning
               >
                 {isMicActive ? "🎤" : "🔇"}
               </button>
@@ -634,19 +679,29 @@ function InterviewContent() {
                 Transcript
               </div>
               <div className={styles.transcriptFeed} ref={chatContainerRef}>
-                {transcript.length === 0 && !interimEntry && (
+                {transcript.length === 0 && !userInterim && !aiInterim && (
                   <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
                 )}
                 {transcript.map((entry, i) => (
                   <div key={i} className={styles.transcriptEntry}>
-                    <span className={styles.transcriptSpeaker}>{entry.speaker === "interviewer" ? "Sarah" : "You"}</span>
-                    <p className={styles.transcriptText}>{entry.text}</p>
+                    <span className={`${styles.transcriptSpeaker} ${entry.speaker === "interviewer" ? styles.speakerAi : styles.speakerUser}`}>
+                      {entry.speaker === "interviewer" ? "Sarah" : "You"}
+                    </span>
+                    <p className={`${styles.transcriptText} ${entry.speaker === "interviewer" ? styles.textAi : styles.textUser}`}>
+                      {entry.text}
+                    </p>
                   </div>
                 ))}
-                {interimEntry && (
+                {userInterim && (
                   <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
-                    <span className={styles.transcriptSpeaker}>{interimEntry.speaker === "interviewer" ? "Sarah" : "You"}</span>
-                    <p className={styles.transcriptText}>{interimEntry.text}<span className={styles.transcriptCursor} /></p>
+                    <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
+                    <p className={`${styles.transcriptText} ${styles.textUser}`}>{userInterim}<span className={styles.transcriptCursor} /></p>
+                  </div>
+                )}
+                {aiInterim && (
+                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+                    <span className={`${styles.transcriptSpeaker} ${styles.speakerAi}`}>Sarah</span>
+                    <p className={`${styles.transcriptText} ${styles.textAi}`}>{aiInterim}<span className={styles.transcriptCursor} /></p>
                   </div>
                 )}
               </div>
@@ -654,7 +709,7 @@ function InterviewContent() {
 
             {/* Controls */}
             <div className={styles.codingControls}>
-              <button className={`${styles.controlBtn} ${!isMicActive ? styles.controlBtnMuted : ""}`} onClick={toggleMic} title={isMicActive ? "Mute" : "Unmute"}>
+              <button className={`${styles.controlBtn} ${!isMicActive ? styles.controlBtnMuted : ""}`} onClick={toggleMic} title={isMicActive ? "Mute" : "Unmute"} suppressHydrationWarning>
                 {isMicActive ? "🎤" : "🔇"}
               </button>
               <div className={styles.audioStatusBadge}>
@@ -676,12 +731,12 @@ function InterviewContent() {
             <div className={styles.editorSection}>
               <div className={styles.editorToolbar}>
                 <div className={styles.editorToolbarLeft}>
-                  <select className="select" value={selectedLanguage} onChange={(e) => handleLanguageChange(e.target.value)} id="editor-language-select">
-                    {Object.entries(LANGUAGE_DISPLAY).map(([key, label]) => (<option key={key} value={key}>{label}</option>))}
+                  <select className="select" value={selectedLanguage} onChange={(e) => handleLanguageChange(e.target.value)} id="editor-language-select" suppressHydrationWarning>
+                    {Object.entries(LANGUAGE_DISPLAY).map(([key, label]) => (<option key={key} value={key} suppressHydrationWarning>{label}</option>))}
                   </select>
                 </div>
                 <div className={styles.editorToolbarRight}>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setCode(DEFAULT_CODE[selectedLanguage] || "")}>↺ Reset</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setCode(DEFAULT_CODE[selectedLanguage] || "")} suppressHydrationWarning>↺ Reset</button>
                 </div>
               </div>
               <div className={styles.editorWrapper}>

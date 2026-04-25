@@ -203,10 +203,7 @@ export class GeminiLiveClient {
 
         // Turn complete — flush the accumulated transcript as one paragraph
         if (serverContent.turnComplete) {
-          if (this.aiTranscriptBuffer.trim()) {
-            this.config.onTranscriptUpdate("interviewer", this.aiTranscriptBuffer.trim(), true);
-            this.aiTranscriptBuffer = "";
-          }
+          // Flush User's text FIRST
           if (this.userTranscriptBuffer.trim()) {
             const userText = this.userTranscriptBuffer.trim();
             this.userTranscriptBuffer = "";
@@ -214,6 +211,11 @@ export class GeminiLiveClient {
             if (!/[^\x00-\x7F]/.test(userText)) {
               this.config.onTranscriptUpdate("user", userText, true);
             }
+          }
+          // Flush AI's text SECOND
+          if (this.aiTranscriptBuffer.trim()) {
+            this.config.onTranscriptUpdate("interviewer", this.aiTranscriptBuffer.trim(), true);
+            this.aiTranscriptBuffer = "";
           }
           this.config.onAudioStateChange(false);
         }

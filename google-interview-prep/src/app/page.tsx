@@ -10,11 +10,11 @@ export default function Home() {
           <div className={styles.logoIcon}>G</div>
           Interview Prep AI
         </div>
-        <div className={styles.navActions}>
-          <Link href="/login" className="btn btn-ghost">
+        <div className={styles.navActions} suppressHydrationWarning>
+          <Link href="/login" className="btn btn-ghost" suppressHydrationWarning>
             Sign In
           </Link>
-          <Link href="/login" className="btn btn-primary">
+          <Link href="/login" className="btn btn-primary" suppressHydrationWarning>
             Get Started
           </Link>
         </div>
@@ -41,11 +41,12 @@ export default function Home() {
           skills.
         </p>
 
-        <div className={styles.heroCta}>
+        <div className={styles.heroCta} suppressHydrationWarning>
           <Link
             href="/login"
             className={`btn btn-primary ${styles.heroCtaBtn}`}
             id="cta-start"
+            suppressHydrationWarning
           >
             Start Practicing →
           </Link>
@@ -53,6 +54,7 @@ export default function Home() {
             href="#features"
             className={`btn btn-secondary ${styles.heroCtaBtn}`}
             id="cta-learn-more"
+            suppressHydrationWarning
           >
             Learn More
           </Link>
@@ -209,7 +211,7 @@ export default function Home() {
 
       {/* ---------- CTA ---------- */}
       <section className={styles.cta}>
-        <div className={styles.ctaCard}>
+        <div className={styles.ctaCard} suppressHydrationWarning>
           <h2 className={styles.ctaTitle}>Ready to Practice?</h2>
           <p className={styles.ctaDesc}>
             Sign in with your Google account and start your first mock
@@ -219,6 +221,7 @@ export default function Home() {
             href="/login"
             className="btn btn-primary btn-lg"
             id="cta-bottom"
+            suppressHydrationWarning
           >
             Start Free Practice →
           </Link>
@@ -226,8 +229,8 @@ export default function Home() {
       </section>
 
       {/* ---------- Footer ---------- */}
-      <footer className={styles.footer}>
-        <p>
+      <footer className={styles.footer} suppressHydrationWarning>
+        <p suppressHydrationWarning>
           © {new Date().getFullYear()} FAANG Interview Prep AI — Built with
           Gemini & Google ADK
         </p>
