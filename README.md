@@ -1,68 +1,191 @@
-# FAANG Interview Prep AI
+# FAANG Prep AI
 
-An immersive, real-time mock interview application designed to help candidates prepare for Google software engineering and behavioral interviews. The application features a fully interactive AI interviewer ("Sarah") capable of real-time voice conversation, code analysis, and dynamic feedback generation powered by the Gemini Live API.
-
-## 🌟 Core Features
-
-- **Real-Time Voice AI Interviewer**: Engage in low-latency, bidirectional, natural spoken conversations with an AI interviewer.
-- **Photorealistic Animated Avatar**: Experience a realistic simulated video call with "Sarah", a generated interviewer whose mouth animates in sync with the semantic flow of the audio.
-- **Live Code Evaluation**: Integrated Monaco code editor. Every 10 seconds, your code is silently synced to the AI interviewer so she can see your progress and provide targeted hints when you are stuck.
-- **Behavioral & Coding Tracks**: 
-  - *Coding*: 30-minute sessions focused on DSA, problem-solving, and code execution.
-  - *Behavioral*: 5-minute sessions focused on the STAR method, leadership, and teamwork.
-- **Dynamic Feedback Engine**: At the end of every interview, Gemini 2.5 Flash acts as a Senior Google Engineer to evaluate your complete transcript and code, providing a detailed breakdown of your Communication, Engagement, Code Quality, and a final "Hire / No Hire" decision.
-- **Secure Architecture**: Implements Google's recommended Ephemeral Token architecture so your sensitive API keys are never exposed to the browser.
-- **Google Authentication**: Seamless Firebase Google Sign-In backend to track your mock interview history.
+> A real-time AI mock interview platform for Google, Amazon, Meta, Apple, and Netflix — built with Gemini Live API, Next.js, and FastAPI.
 
 ---
 
-## 🏗️ Technical Architecture & Connection Mechanics
+## The Problem
 
-The application is split into a robust **Next.js Frontend** and a lightweight **FastAPI Backend**, communicating tightly with Google's **Gemini Models**.
+Preparing for FAANG interviews is hard — not because the material is inaccessible, but because **realistic practice is**. LeetCode tells you if your code is correct. YouTube teaches you STAR frameworks. But nothing puts you in the actual discomfort of speaking your solution out loud under time pressure, to a human who asks follow-up questions, while your code is being watched.
 
-### 1. The Ephemeral Token Flow (WebSocket Initialization)
-To establish a real-time voice connection directly between the user's browser and Google GenAI without routing massive audio streams through our backend (which would cause severe latency), the system uses an Ephemeral Token exchange:
-1. When you start an interview, the frontend asks the Python backend for a token.
-2. The FastAPI backend authenticates with `gemini.google.com` using the secure `GEMINI_API_KEY` and requests a short-lived **Ephemeral Authentication Token** via the `auth_tokens.create` endpoint. The backend also attaches system instructions (telling the AI to act as Sarah, providing the coding problem context, etc.).
-3. The token is returned to the frontend.
-4. The frontend uses this token to open a direct WebSocket connection (`BidiGenerateContentConstrained`) to `wss://generativelanguage.googleapis.com`.
+Mock interviews with real engineers are rare, expensive, and hard to schedule. AI chatbots are better than nothing, but they're asynchronous — you type, you wait, you read. That's not what a real interview feels like.
 
-### 2. Bi-Directional Audio Streaming
-Once the WebSocket is active:
-- **Microphone (Input)**: The frontend uses the `Web Audio API` (`ScriptProcessorNode`) to capture the user's microphone at 16kHz, converts it to Int16 PCM data, encodes it to base64, and streams it to Gemini. Voice Activity Detection (VAD) is configured to wait 3 seconds before the AI responds, preventing unnatural interruptions while the human pauses to think.
-- **Speaker (Output)**: When the AI speaks, it streams base64 audio chunks back over the WebSocket. The frontend decodes these chunks back into Int16 PCM, converts them to Float32, and plays them via an `AudioContext` buffer.
-
-### 3. Live Code Sync
-While you write coding solutions in the Monaco editor, a React `useEffect` interval triggers every 10 seconds. It captures your current code state and sends it as a silent text update (`clientContent`) over the active WebSocket. The AI stores this in its context window, allowing you to ask "Does this implementation look right?" and allowing the AI to organically reply based on your actual typed code.
-
-### 4. Avatar Lip-Sync Simulation
-To create a realistic "video call" feel without relying on expensive, high-latency third-party generation APIs (like HeyGen):
-- We generated two identical photorealistic images of Sarah: one with a closed mouth and one with an open mouth.
-- When the WebSocket receives a stream indicating the AI is speaking (`audioStatus === "speaking"`), a rapid 150ms interval toggle is activated in React.
-- The UI seamlessly flashes between the closed and open mouth images, creating a highly effective simulated lip-sync effect synchronized perfectly with the inbound audio buffer.
-
-### 5. Dynamic Evaluation & Feedback
-When you intentionally click "End Interview", or the timer runs out, the WebSocket is closed. 
-1. The frontend gathers all recorded dialogue into a complete `Transcript` and grabs your final code block.
-2. This packet is POSTed to the backend `/api/interview/{session_id}/generate-feedback`.
-3. The backend feeds this entire context to `gemini-2.5-flash` with a strict JSON system prompt.
-4. Gemini evaluates performance based on Google's actual rubric (Clarity, Hint Usage, Time Complexity, Confidence) and returns a structured JSON payload which is instantly rendered on the Feedback Dashboard.
+**FAANG Prep AI solves this by simulating the full interview experience end-to-end**: a voice-first AI interviewer that listens, responds, watches your code in real time, and delivers a structured hire/no-hire decision when you're done.
 
 ---
 
-## 🛠️ Technology Stack
+## Screenshots
 
-**Frontend:**
-- **Next.js 14+ (App Router)** & React 18
-- **Monaco Editor** (for live coding)
-- **Web Audio API** (PCM processing & audio playback)
-- **Firebase Authentication**
+### Landing Page
+![Landing Page](./google-interview-prep/public/screenshots/landing.png)
 
-**Backend:**
-- **Python 3.10+ & FastAPI**
-- **Uvicorn** (ASGI Server)
-- **Google GenAI SDK** (latest `google-genai` package)
+### Dashboard — Choose Your Interview
+![Dashboard](./google-interview-prep/public/screenshots/dashboard.png)
 
-**AI Models:**
-- `gemini-2.0-flash-exp` (utilized via Bidi API format for low-latency Real-time Voice)
-- `gemini-2.5-flash` (utilized for post-interview transcript analysis and feedback)
+---
+
+## What It Does
+
+### Two Interview Tracks
+
+**Coding Interview (DSA)**
+- The AI presents a real DSA problem (Arrays, Trees, Graphs, DP, Strings) calibrated to Easy / Medium / Hard (L2–L5+)
+- You speak your approach out loud while writing code in a Monaco editor
+- Your code is silently synced to the AI every 10 seconds — it can see exactly what you're building and gives targeted hints accordingly
+- A Judge0 sandbox compiles and runs your code against test cases in real time
+
+**Behavioral Interview (STAR)**
+- The AI asks behavioral questions on Leadership, Teamwork, Conflict Resolution, and Growth
+- It listens to your full answer and probes with natural follow-up questions
+- Evaluates STAR structure, communication clarity, and storytelling ability
+
+### Real-Time Voice — Not a Chatbot
+The interviewer is fully voice-driven. You speak; it listens and responds with sub-second latency using Google's **Gemini Live API** over a persistent WebSocket. There is no typing, no submit button, no waiting for a page to load. It feels like a phone call.
+
+### Animated AI Interviewer — "Sarah"
+The interview UI simulates a video call with a photorealistic AI interviewer. Her mouth animates in sync with her speech — without any third-party avatar API. The system alternates between a closed-mouth and open-mouth image on a 150ms interval whenever audio is streaming, creating a convincing lip-sync effect at zero added cost or latency.
+
+### Feedback Report
+When the interview ends, Gemini 2.5 Flash — acting as a Senior Engineer — evaluates your complete transcript and final code submission against a structured rubric:
+
+- **Communication** — Clarity, structure, articulation
+- **Problem Solving** — Approach, edge case handling, hint usage
+- **Code Quality** — Correctness, time/space complexity, readability
+- **Engagement** — Confidence, eye contact, composure
+- **Final Decision** — Hire / Lean Hire / Lean No Hire / No Hire
+
+---
+
+## Architecture
+
+```
+Browser (Next.js)
+    │
+    ├── 1. Requests ephemeral token  ──►  FastAPI Backend
+    │                                         │
+    │   ◄── Short-lived token ────────────────┘
+    │
+    ├── 2. Opens direct WebSocket  ──►  Gemini Live API (wss://)
+    │         │                               │
+    │   PCM audio (16kHz, base64)    ◄── Audio chunks + text
+    │
+    ├── 3. Code sync (every 10s)  ──►  WebSocket clientContent
+    │
+    └── 4. End of interview POST  ──►  FastAPI /generate-feedback
+                                           │
+                                      Gemini 2.5 Flash
+                                           │
+                                    Structured JSON report
+```
+
+### Why Ephemeral Tokens?
+Streaming microphone audio through a backend server would introduce 200–400ms of unnecessary latency on every audio chunk. Instead, the backend generates a **short-lived authentication token** (valid for one session), hands it to the browser, and the browser opens a direct WebSocket to Google's infrastructure. The API key never touches the client. Low latency, full security.
+
+### Multi-Agent Backend (Google ADK)
+The backend uses **Google's Agent Development Kit** to orchestrate a hierarchy of specialized agents:
+
+| Agent | Responsibility |
+|---|---|
+| `Orchestrator` | Routes to the correct agent based on interview phase |
+| `CodingInterviewer` | DSA problem presentation, hint management |
+| `BehavioralInterviewer` | STAR question flow and follow-up logic |
+| `CodeEvaluator` | Real-time code analysis and complexity feedback |
+| `FeedbackGenerator` | Post-interview scoring and hire decision |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 16 (App Router), React, TypeScript, CSS Modules |
+| **Code Editor** | Monaco Editor (same engine as VS Code) |
+| **Audio** | Web Audio API — PCM capture, base64 streaming, Float32 playback |
+| **Backend** | Python 3.12, FastAPI, Uvicorn |
+| **AI — Voice** | Gemini Live API (`gemini-2.0-flash-live-preview`) via WebSocket |
+| **AI — Feedback** | Gemini 2.5 Flash (structured JSON evaluation) |
+| **Agent Framework** | Google ADK (Agent Development Kit) |
+| **Code Execution** | Judge0 (multi-language sandbox) |
+| **Auth & Storage** | Firebase Authentication + Firestore |
+| **Theming** | CSS custom properties, light/dark toggle, flash-free SSR |
+
+---
+
+## Local Setup
+
+### Prerequisites
+- Node.js 18+
+- Python 3.12+
+- A Google Gemini API key
+- A Firebase project
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/aditya-baniya-ai/Interview_prep.git
+cd Interview_prep/google-interview-prep
+```
+
+### 2. Frontend
+```bash
+npm install
+```
+
+Create `.env.local`:
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+```
+
+```bash
+npx next dev
+```
+
+### 3. Backend
+```bash
+cd backend
+python3.12 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Create `backend/.env`:
+```env
+GEMINI_API_KEY=your_key_here
+```
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+Frontend → `http://localhost:3000` · Backend → `http://localhost:8000`
+
+---
+
+## Key Engineering Decisions
+
+**Direct WebSocket to Gemini (not proxied)**
+Routing audio through the backend would add 200–400ms per chunk. The ephemeral token pattern eliminates this without compromising key security.
+
+**Lip-sync without an avatar API**
+Services like HeyGen add ~1–2s of latency and significant cost per session. The alternating image approach delivers a visually convincing result at zero added latency or cost.
+
+**Live code sync as silent context**
+Rather than asking the candidate to explicitly "submit" their code, a background interval pushes the current editor state into the AI's context window every 10 seconds. The interviewer naturally incorporates this — asking "I see you're using a hash map here, can you walk me through why?" — without any explicit handoff.
+
+**CSS-only dark mode with no flash**
+An inline `<script>` in `<head>` reads `localStorage` synchronously before React hydrates, setting `data-theme` on `<html>` before the first paint. Zero flash of wrong theme.
+
+---
+
+## Built By
+
+**Shivendra Bhagat** — Built for the Launchd Build Sprint Hackathon
+
+---
+
+*"The best way to prepare for a FAANG interview is to do one — as many times as you need."*
