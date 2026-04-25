@@ -166,6 +166,54 @@ Frontend → `http://localhost:3000` · Backend → `http://localhost:8000`
 
 ---
 
+## The Latency Problem — and How We Solved It
+
+Real-time voice AI sounds straightforward until you build it. Every millisecond of delay breaks the illusion — a 500ms lag between when you finish speaking and when the AI responds feels like talking to someone on a bad satellite call. It kills the interview simulation entirely.
+
+We hit three distinct latency problems and solved each one differently.
+
+**Problem 1: Audio routing through the backend added 200–400ms per chunk**
+
+Our first instinct was to stream microphone audio from the browser → our FastAPI server → Gemini. Every audio chunk made two network hops instead of one. At 16kHz PCM, that's hundreds of small payloads per second, each paying the round-trip tax. The conversation felt sluggish and unnatural.
+
+*Solution: Ephemeral token architecture.* The backend's only job at session start is to authenticate with Google and return a short-lived token. The browser then opens a **direct WebSocket to Gemini's infrastructure** — zero intermediary. Audio travels one hop. The API key never leaves the server. Latency dropped immediately.
+
+**Problem 2: The AI interrupted too eagerly — or waited too long**
+
+Out of the box, Gemini's Voice Activity Detection (VAD) would trigger the AI response the moment audio stopped — even mid-sentence when you paused to think. On the other extreme, conservative settings made the AI feel unresponsive. In an interview context, premature interruptions are particularly disruptive: candidates lose their train of thought.
+
+*Solution: Tuned VAD with a 3-second end-of-speech threshold.* We configured the session to wait 3 seconds of silence before treating speech as complete. This matches how real interviewers behave — they give you space to think. The result is a conversation rhythm that feels natural rather than pressured.
+
+**Problem 3: Audio playback had crackling and buffer underruns**
+
+Gemini streams audio back as base64-encoded Int16 PCM chunks of inconsistent sizes. Playing them directly caused audible crackling because the `AudioContext` was starved between chunks. We needed a buffer.
+
+*Solution: Chunk accumulation with Float32 conversion.* Incoming base64 chunks are decoded to Int16, converted to Float32 (dividing by 32768), and queued into an `AudioContext` buffer that plays continuously rather than chunk-by-chunk. The result is smooth, uninterrupted playback regardless of network jitter.
+
+The combined effect: end-to-end voice latency under 800ms in typical conditions — responsive enough to feel like a real conversation.
+
+---
+
+## Multimodal AI — More Than Just Voice
+
+Most "AI interviewers" are language models with a chat interface. FAANG Prep AI processes **four distinct input modalities simultaneously** throughout the session.
+
+**1. Voice (bidirectional audio)**
+The primary channel. The candidate speaks; Gemini processes raw audio — not a transcript — which means it captures hesitation, filler words, pacing, and confidence in ways that text transcription discards. The AI responds in natural speech, not synthesized from text-to-speech after the fact.
+
+**2. Live Code (silent text injection)**
+Every 10 seconds, the current state of the Monaco editor is pushed into the AI's context window as a silent `clientContent` message. The AI doesn't wait to be told about your code — it just knows. This enables organic, code-aware questions: *"You're using O(n²) here — is there a way to bring that down?"* without the candidate having to explicitly submit or share anything.
+
+**3. Webcam (video)**
+The candidate's webcam feed is active throughout the session. The system captures engagement signals — eye contact, posture, composure — that feed into the post-interview feedback score under the **Engagement** dimension. This is the modality that no text-based prep tool can replicate.
+
+**4. Structured Evaluation (analytical reasoning)**
+At session end, Gemini 2.5 Flash receives the complete transcript, final code, webcam engagement signals, and hint count as a unified context. It doesn't just summarize — it reasons across all four modalities to produce a hire/no-hire decision grounded in the same rubric real interviewers use.
+
+This is what makes the system genuinely multimodal: not four separate pipelines bolted together, but a single session context that grows richer across voice, code, and video simultaneously.
+
+---
+
 ## Key Engineering Decisions
 
 **Direct WebSocket to Gemini (not proxied)**
