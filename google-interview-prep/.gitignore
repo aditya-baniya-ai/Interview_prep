@@ -42,3 +42,9 @@ next-env.d.ts
 
 # code-review-graph cache
 .code-review-graph/
+
+# python
+backend/venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
