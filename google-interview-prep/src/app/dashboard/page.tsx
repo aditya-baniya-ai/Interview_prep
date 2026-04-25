@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import { ThemeToggle } from "@/lib/theme";
 import styles from "./dashboard.module.css";
 
 const LANGUAGES = ["python", "javascript", "java", "cpp"];
@@ -106,10 +107,18 @@ export default function DashboardPage() {
       {/* ---------- Navbar ---------- */}
       <nav className={styles.dashNav} id="dashboard-nav">
         <div className={styles.dashNavLogo}>
-          <div className={styles.dashNavLogoIcon}>G</div>
-          Interview Prep AI
+          <div className={styles.dashNavLogoIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-label="Google G">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+          </div>
+          Interview Prep
         </div>
         <div className={styles.dashNavRight}>
+          <ThemeToggle className={styles.themeToggle} />
           <div className={styles.userChip}>
             <div className={styles.userAvatar}>
               {user.photoURL ? (
@@ -134,7 +143,7 @@ export default function DashboardPage() {
       <main className={styles.dashContent}>
         <div className={styles.dashWelcome}>
           <h1 className={styles.dashWelcomeTitle}>
-            Welcome, {user.displayName?.split(" ")[0] || "there"} 👋
+            Welcome, {user.displayName?.split(" ")[0] || "there"}
           </h1>
           <p className={styles.dashWelcomeSub}>
             Ready to practice for your Google interview? Choose your session
@@ -147,18 +156,8 @@ export default function DashboardPage() {
           <h2 className={styles.startSectionTitle}>Choose Interview Type</h2>
           <div className={styles.interviewTypes}>
             <div
-              className={`card card-interactive ${styles.interviewTypeCard} ${styles.cardCoding}`}
+              className={`${styles.interviewTypeCard} ${interviewType === "coding" ? styles.interviewTypeCardSelected : ""}`}
               onClick={() => setInterviewType("coding")}
-              style={{
-                borderColor:
-                  interviewType === "coding"
-                    ? "var(--color-primary)"
-                    : undefined,
-                boxShadow:
-                  interviewType === "coding"
-                    ? "var(--shadow-glow)"
-                    : undefined,
-              }}
               id="type-coding"
             >
               <div className={`${styles.interviewTypeIcon} ${styles.iconCoding}`}>
@@ -179,24 +178,14 @@ export default function DashboardPage() {
                 <span className={styles.tag}>DP</span>
                 <span className={styles.tag}>Strings</span>
               </div>
-              <span className="btn btn-primary btn-sm">
+              <span className={`btn btn-primary btn-sm`}>
                 {interviewType === "coding" ? "✓ Selected" : "Select"}
               </span>
             </div>
 
             <div
-              className={`card card-interactive ${styles.interviewTypeCard} ${styles.cardBehavioral}`}
+              className={`${styles.interviewTypeCard} ${interviewType === "behavioral" ? styles.interviewTypeCardSelected : ""}`}
               onClick={() => setInterviewType("behavioral")}
-              style={{
-                borderColor:
-                  interviewType === "behavioral"
-                    ? "var(--color-accent-yellow)"
-                    : undefined,
-                boxShadow:
-                  interviewType === "behavioral"
-                    ? "0 0 30px rgba(251, 188, 4, 0.15)"
-                    : undefined,
-              }}
               id="type-behavioral"
             >
               <div
@@ -218,7 +207,7 @@ export default function DashboardPage() {
                 <span className={styles.tag}>Conflict</span>
                 <span className={styles.tag}>Growth</span>
               </div>
-              <span className="btn btn-secondary btn-sm">
+              <span className="btn btn-primary btn-sm">
                 {interviewType === "behavioral" ? "✓ Selected" : "Select"}
               </span>
             </div>
@@ -229,7 +218,7 @@ export default function DashboardPage() {
         <div className={styles.configSection}>
           <h2 className={styles.startSectionTitle}>Session Settings</h2>
           <div className={styles.configGrid}>
-            <div className={`card ${styles.configCard}`}>
+            <div className={styles.configCard}>
               <label className={styles.configLabel}>
                 Programming Language
               </label>
@@ -251,7 +240,7 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className={`card ${styles.configCard}`}>
+            <div className={styles.configCard}>
               <label className={styles.configLabel}>Session Duration</label>
               <select
                 className="select w-full"
@@ -267,7 +256,7 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className={`card ${styles.configCard}`}>
+            <div className={styles.configCard}>
               <label className={styles.configLabel}>Difficulty</label>
               <select 
                 className="select w-full" 
@@ -288,12 +277,11 @@ export default function DashboardPage() {
         {/* ---------- Start Button ---------- */}
         <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
           <button
-            className="btn btn-primary btn-lg"
+            className={styles.startBtn}
             onClick={handleStartInterview}
             id="start-interview-btn"
-            style={{ padding: "16px 48px", fontSize: "18px" }}
           >
-            🎤 Start Interview Session
+            Start Interview Session
           </button>
         </div>
 
@@ -301,24 +289,24 @@ export default function DashboardPage() {
         <div className={styles.historySection}>
           <h2 className={styles.startSectionTitle}>Past Sessions</h2>
           {pastSessions.length === 0 ? (
-            <div className={`card ${styles.historyEmpty}`}>
+            <div className={styles.historyEmpty}>
               <div className={styles.historyEmptyIcon}>📋</div>
-              <p>No interview sessions yet.</p>
-              <p style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-2)" }}>
+              <p style={{ color: "var(--text-secondary)" }}>No interview sessions yet.</p>
+              <p style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-2)", color: "var(--text-secondary)" }}>
                 Start your first practice session above!
               </p>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               {pastSessions.map((session) => (
-                <div key={session.id} className={`card ${styles.configCard}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={session.id} className={styles.historyItem}>
                   <div>
-                    <h3 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: "600" }}>
-                      {session.interviewType === "coding" ? "💻 Coding Interview" : "🗣️ Behavioral Interview"}
+                    <h3 style={{ margin: "0 0 4px 0", fontSize: "var(--text-base)", fontWeight: "500", color: "var(--text-primary)" }}>
+                      {session.interviewType === "coding" ? "Coding Interview" : "Behavioral Interview"}
                     </h3>
-                    <p style={{ margin: 0, fontSize: "14px", color: "var(--text-secondary)" }}>
-                      {new Date(session.createdAt).toLocaleDateString()} • {session.durationMinutes} minutes
-                      {session.feedback?.overallDecision && ` • ${session.feedback.overallDecision}`}
+                    <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+                      {new Date(session.createdAt).toLocaleDateString()} · {session.durationMinutes} min
+                      {session.feedback?.overallDecision && ` · ${session.feedback.overallDecision}`}
                     </p>
                   </div>
                   <Link href={`/interview/feedback?sid=${session.id}&type=${session.interviewType}`} className="btn btn-secondary btn-sm">
