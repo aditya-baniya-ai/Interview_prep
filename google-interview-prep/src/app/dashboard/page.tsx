@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, orderBy, getDocs } from "@firebase/firestore";
 import { ThemeToggle } from "@/lib/theme";
 import { NavBrand } from "@/components/NavBrand";
 import styles from "./dashboard.module.css";

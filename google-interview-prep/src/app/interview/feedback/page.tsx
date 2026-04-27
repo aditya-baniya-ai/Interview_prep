@@ -1,13 +1,107 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "@firebase/firestore";
 import { NavBrand } from "@/components/NavBrand";
 import styles from "./feedback.module.css";
+
+// Read-only Monaco editor for the reviewer view. SSR-disabled because Monaco
+// touches `window` during init.
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+
+type Severity = "warning" | "suggestion" | "info" | "praise";
+
+interface CodeAnnotation {
+  line: number;
+  severity: Severity;
+  message: string;
+}
+
+const LANGUAGE_LABEL: Record<string, string> = {
+  python: "Python",
+  javascript: "JavaScript",
+  java: "Java",
+  cpp: "C++",
+};
+
+const FILE_EXTENSION: Record<string, string> = {
+  python: "py",
+  javascript: "js",
+  java: "java",
+  cpp: "cpp",
+};
+
+// Comment prefix per language — used when weaving reviewer comments into the
+// source so Monaco's tokenizer renders them in its native comment color.
+const COMMENT_PREFIX: Record<string, string> = {
+  python: "# ",
+  javascript: "// ",
+  java: "// ",
+  cpp: "// ",
+};
+
+const SEVERITY_ICON: Record<Severity, string> = {
+  warning: "⚠️ ",
+  suggestion: "💡 ",
+  info: "ℹ️ ",
+  praise: "✅ ",
+};
+
+const SEVERITY_LABEL: Record<Severity, string> = {
+  warning: "ISSUE",
+  suggestion: "SUGGEST",
+  info: "NOTE",
+  praise: "WELL DONE",
+};
+
+/**
+ * Insert reviewer comments directly into the source as native comment lines,
+ * preserving the original indentation of the line being annotated. We process
+ * annotations from highest line number to lowest so earlier insertions don't
+ * shift the line indices of later ones.
+ */
+function weaveAnnotations(
+  code: string,
+  language: string,
+  annotations: CodeAnnotation[] | undefined,
+): string {
+  if (!code) return "";
+  if (!annotations || annotations.length === 0) return code;
+
+  const prefix = COMMENT_PREFIX[language] || "// ";
+  const lines = code.split("\n");
+
+  // Sort descending so insertions don't invalidate later line indices.
+  const sorted = [...annotations]
+    .filter((a) => a && typeof a.line === "number" && a.message)
+    .sort((a, b) => b.line - a.line);
+
+  for (const ann of sorted) {
+    // Clamp to a valid 1-indexed line — Gemini occasionally emits an off-by-one.
+    const idx = Math.max(1, Math.min(ann.line, lines.length)) - 1;
+    const original = lines[idx] || "";
+    const indent = original.match(/^\s*/)?.[0] ?? "";
+    const icon = SEVERITY_ICON[ann.severity] ?? "ℹ️ ";
+    const tag = SEVERITY_LABEL[ann.severity] ?? "NOTE";
+    const commentLine = `${indent}${prefix}${icon}${tag}: ${ann.message}`;
+    lines.splice(idx, 0, commentLine);
+  }
+  return lines.join("\n");
+}
+
+function annotationCounts(annotations: CodeAnnotation[] | undefined) {
+  const counts = { warning: 0, suggestion: 0, info: 0, praise: 0 };
+  if (!annotations) return counts;
+  for (const a of annotations) {
+    if (a && a.severity in counts) counts[a.severity] += 1;
+  }
+  return counts;
+}
 
 // Default feedback (fallback if sessionStorage has nothing)
 const DEFAULT_FEEDBACK = {
@@ -102,6 +196,46 @@ function FeedbackContent() {
     // If not logged in, it will skip Firestore but still fall back
     loadFeedback();
   }, [sessionId, user]);
+
+  // ── Code review (Monaco IDE) data prep ─────────────────────────────────
+  // Computed BEFORE the loading early-return so React Hook ordering is stable
+  // across renders. Empty/default values when the feedback payload is missing.
+  const codingLanguage: string = feedback?.coding?.language || "python";
+  const userCodeRaw: string = feedback?.coding?.userCode || "";
+  const optimalCodeRaw: string = feedback?.coding?.optimalCode || "";
+  // Memoize the annotation arrays themselves so their identity is stable across
+  // renders and we don't re-run the weave step every render.
+  const userAnnotations = useMemo<CodeAnnotation[]>(
+    () => feedback?.coding?.codeAnnotations || [],
+    [feedback],
+  );
+  const optimalAnnotations = useMemo<CodeAnnotation[]>(
+    () => feedback?.coding?.optimalCodeAnnotations || [],
+    [feedback],
+  );
+
+  const userCodeWoven = useMemo(
+    () => weaveAnnotations(userCodeRaw, codingLanguage, userAnnotations),
+    [userCodeRaw, codingLanguage, userAnnotations],
+  );
+  const optimalCodeWoven = useMemo(
+    () => weaveAnnotations(optimalCodeRaw, codingLanguage, optimalAnnotations),
+    [optimalCodeRaw, codingLanguage, optimalAnnotations],
+  );
+
+  const userCounts = annotationCounts(userAnnotations);
+  const fileExt = FILE_EXTENSION[codingLanguage] || "txt";
+  const langLabel = LANGUAGE_LABEL[codingLanguage] || codingLanguage;
+  // Editor height: scale to content but cap so it doesn't dominate the page.
+  // ~22px per line + padding works for Monaco's default 14px line-height.
+  const userEditorHeight = Math.min(
+    720,
+    Math.max(320, userCodeWoven.split("\n").length * 22 + 40),
+  );
+  const optimalEditorHeight = Math.min(
+    720,
+    Math.max(280, optimalCodeWoven.split("\n").length * 22 + 40),
+  );
 
   if (loading || !feedback) {
     return (
@@ -257,19 +391,167 @@ function FeedbackContent() {
               </div>
             </div>
             
-            {/* Side-by-side Code Comparison */}
-            <div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <div style={{ background: "var(--surface-1)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border)" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1.5px" }}>Your Code</h4>
-                <pre style={{ margin: 0, padding: 0, overflowX: "auto", fontSize: "13px", lineHeight: 1.5, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                  <code>{feedback.coding.userCode || "(No code provided)"}</code>
-                </pre>
+            {/* ── Code Review IDE — your code with reviewer comments ────────── */}
+            <div className={styles.ideStack}>
+              {/* Optional one-line verdict, only if Gemini provided it */}
+              {feedback.coding.codeReviewSummary && (
+                <p className={styles.ideSummary}>
+                  {feedback.coding.codeReviewSummary}
+                </p>
+              )}
+
+              {/* — Your Code — */}
+              <div className={`${styles.ideCard} ${styles.ideCardUser}`}>
+                <div className={styles.ideHeader}>
+                  <div className={styles.ideTrafficLights}>
+                    <span style={{ background: "#ff5f57" }} />
+                    <span style={{ background: "#febc2e" }} />
+                    <span style={{ background: "#28c840" }} />
+                  </div>
+                  <div className={styles.ideFilename}>
+                    your_solution.{fileExt}
+                  </div>
+                  <div className={styles.ideHeaderRight}>
+                    <span className={styles.ideBadge}>{langLabel}</span>
+                    {userCounts.warning > 0 && (
+                      <span className={`${styles.ideStat} ${styles.ideStatWarn}`}>
+                        ⚠ {userCounts.warning}{" "}
+                        {userCounts.warning === 1 ? "issue" : "issues"}
+                      </span>
+                    )}
+                    {userCounts.suggestion > 0 && (
+                      <span className={`${styles.ideStat} ${styles.ideStatSuggest}`}>
+                        💡 {userCounts.suggestion}{" "}
+                        {userCounts.suggestion === 1
+                          ? "suggestion"
+                          : "suggestions"}
+                      </span>
+                    )}
+                    {userCounts.praise > 0 && (
+                      <span className={`${styles.ideStat} ${styles.ideStatPraise}`}>
+                        ✅ {userCounts.praise}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <p className={styles.ideMicroHint}>
+                  Reviewer comments appear inline as{" "}
+                  <code>{(COMMENT_PREFIX[codingLanguage] || "// ").trim()}</code>{" "}
+                  comments above the line they refer to.
+                </p>
+
+                <div
+                  className={styles.ideEditor}
+                  style={{ height: `${userEditorHeight}px` }}
+                >
+                  <Editor
+                    height="100%"
+                    language={codingLanguage}
+                    value={userCodeWoven || "(No code submitted)"}
+                    theme="vs-dark"
+                    options={{
+                      readOnly: true,
+                      domReadOnly: true,
+                      fontSize: 15,
+                      fontFamily:
+                        "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
+                      lineHeight: 22,
+                      minimap: { enabled: false },
+                      scrollBeyondLastLine: false,
+                      renderLineHighlight: "none",
+                      wordWrap: "on",
+                      lineNumbers: "on",
+                      padding: { top: 14, bottom: 14 },
+                      smoothScrolling: true,
+                      bracketPairColorization: { enabled: true },
+                    }}
+                  />
+                </div>
+
+                {/* Annotation legend / sidebar list — reinforces the inline comments */}
+                {userAnnotations.length > 0 && (
+                  <ul className={styles.ideAnnotationList}>
+                    {userAnnotations
+                      .slice()
+                      .sort((a, b) => a.line - b.line)
+                      .map((a, i) => (
+                        <li
+                          key={i}
+                          className={`${styles.ideAnnotation} ${
+                            styles[
+                              `ideAnnotation_${a.severity}` as keyof typeof styles
+                            ] || ""
+                          }`}
+                        >
+                          <span className={styles.ideAnnotationLine}>
+                            L{a.line}
+                          </span>
+                          <span className={styles.ideAnnotationIcon}>
+                            {SEVERITY_ICON[a.severity] || "ℹ️"}
+                          </span>
+                          <span className={styles.ideAnnotationMsg}>
+                            {a.message}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
               </div>
-              <div style={{ background: "var(--surface-1)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border)" }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: 500, color: "var(--accent-green)", textTransform: "uppercase", letterSpacing: "1.5px" }}>Optimal Solution</h4>
-                <pre style={{ margin: 0, padding: 0, overflowX: "auto", fontSize: "13px", lineHeight: 1.5, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                  <code>{feedback.coding.optimalCode || "(No optimal code generated)"}</code>
-                </pre>
+
+              {/* — Optimal Solution — */}
+              <div className={`${styles.ideCard} ${styles.ideCardOptimal}`}>
+                <div className={styles.ideHeader}>
+                  <div className={styles.ideTrafficLights}>
+                    <span style={{ background: "#ff5f57" }} />
+                    <span style={{ background: "#febc2e" }} />
+                    <span style={{ background: "#28c840" }} />
+                  </div>
+                  <div className={styles.ideFilename}>
+                    optimal_solution.{fileExt}
+                  </div>
+                  <div className={styles.ideHeaderRight}>
+                    <span className={styles.ideBadge}>{langLabel}</span>
+                    <span
+                      className={`${styles.ideStat} ${styles.ideStatPraise}`}
+                    >
+                      ✅ Reference
+                    </span>
+                  </div>
+                </div>
+
+                <p className={styles.ideMicroHint}>
+                  A clean reference solution. Inline notes call out the key
+                  techniques worth taking home.
+                </p>
+
+                <div
+                  className={styles.ideEditor}
+                  style={{ height: `${optimalEditorHeight}px` }}
+                >
+                  <Editor
+                    height="100%"
+                    language={codingLanguage}
+                    value={optimalCodeWoven || "(No optimal code generated)"}
+                    theme="vs-dark"
+                    options={{
+                      readOnly: true,
+                      domReadOnly: true,
+                      fontSize: 15,
+                      fontFamily:
+                        "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
+                      lineHeight: 22,
+                      minimap: { enabled: false },
+                      scrollBeyondLastLine: false,
+                      renderLineHighlight: "none",
+                      wordWrap: "on",
+                      lineNumbers: "on",
+                      padding: { top: 14, bottom: 14 },
+                      smoothScrolling: true,
+                      bracketPairColorization: { enabled: true },
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
