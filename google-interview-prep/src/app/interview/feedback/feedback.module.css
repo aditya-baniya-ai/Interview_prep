@@ -52,7 +52,9 @@
 
 /* ---------- Content ---------- */
 .feedbackContent {
-  max-width: 900px;
+  /* Slightly wider than before so the IDE viewer breathes; 1120px keeps the
+     score bars from looking absurd while letting Monaco render at a real width. */
+  max-width: 1120px;
   margin: 0 auto;
   padding: var(--space-10) var(--space-8);
 }
@@ -281,4 +283,207 @@
   margin-top: var(--space-10);
   padding-bottom: var(--space-12);
   animation: fadeInUp 0.9s ease-out;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CODE REVIEW IDE — read-only Monaco viewer with reviewer comments
+   ════════════════════════════════════════════════════════════════════════ */
+.ideStack {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.ideSummary {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(66, 133, 244, 0.07);
+  border-left: 3px solid var(--accent-blue);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  margin: 0 0 var(--space-2);
+}
+
+/* The IDE "window" — chrome that mimics a real editor */
+.ideCard {
+  background: #1e1e1e;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18),
+              0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.ideCardUser {
+  border-color: rgba(251, 188, 4, 0.35);
+}
+
+.ideCardOptimal {
+  border-color: rgba(52, 168, 83, 0.4);
+}
+
+.ideHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #2a2d31 0%, #25282c 100%);
+  border-bottom: 1px solid #30363d;
+}
+
+.ideTrafficLights {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ideTrafficLights span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3) inset;
+}
+
+.ideFilename {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 13px;
+  color: #c9d1d9;
+  letter-spacing: 0.01em;
+}
+
+.ideHeaderRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ideBadge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(138, 180, 248, 0.16);
+  color: #8ab4f8;
+  border: 1px solid rgba(138, 180, 248, 0.25);
+}
+
+.ideStat {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ideStatWarn {
+  background: rgba(251, 188, 4, 0.16);
+  color: #fbbc04;
+  border-color: rgba(251, 188, 4, 0.32);
+}
+
+.ideStatSuggest {
+  background: rgba(138, 180, 248, 0.14);
+  color: #8ab4f8;
+  border-color: rgba(138, 180, 248, 0.3);
+}
+
+.ideStatPraise {
+  background: rgba(52, 168, 83, 0.14);
+  color: #34a853;
+  border-color: rgba(52, 168, 83, 0.32);
+}
+
+.ideMicroHint {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: rgba(201, 209, 217, 0.65);
+  background: #1a1d20;
+  border-bottom: 1px solid #30363d;
+  font-family: var(--font-sans);
+}
+
+.ideMicroHint code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: #e8eaed;
+  font-size: 11px;
+}
+
+.ideEditor {
+  /* Height set inline based on content; this just isolates Monaco. */
+  width: 100%;
+  background: #1e1e1e;
+}
+
+/* Annotation legend below the editor — reinforces inline comments and gives
+   the candidate a scannable list of the issues. */
+.ideAnnotationList {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: #161719;
+  border-top: 1px solid #30363d;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ideAnnotation {
+  display: grid;
+  grid-template-columns: 44px 24px 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  color: #c9d1d9;
+  line-height: 1.5;
+}
+
+.ideAnnotationLine {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(201, 209, 217, 0.55);
+  letter-spacing: 0.04em;
+}
+
+.ideAnnotationIcon {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ideAnnotationMsg {
+  color: #e8eaed;
+}
+
+.ideAnnotation_warning {
+  border-left-color: #fbbc04;
+  background: rgba(251, 188, 4, 0.06);
+}
+.ideAnnotation_suggestion {
+  border-left-color: #8ab4f8;
+  background: rgba(138, 180, 248, 0.05);
+}
+.ideAnnotation_info {
+  border-left-color: rgba(201, 209, 217, 0.4);
+}
+.ideAnnotation_praise {
+  border-left-color: #34a853;
+  background: rgba(52, 168, 83, 0.06);
 }
