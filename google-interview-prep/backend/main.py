@@ -284,6 +284,11 @@ class FeedbackRequest(BaseModel):
     language: Optional[str] = None
     duration_minutes: int = 45
     time_used_seconds: int = 0
+    # Penalty signals — accumulated by the frontend during the session.
+    mic_off_seconds: int = 0          # mic muted outside of breaks
+    video_off_seconds: int = 0        # camera off outside of breaks
+    breaks_taken: int = 0             # number of breaks the candidate requested
+    break_seconds_total: int = 0      # cumulative break duration
 
 
 @app.post("/api/interview/{session_id}/generate-feedback")
@@ -310,6 +315,68 @@ async def generate_feedback(session_id: str, request: FeedbackRequest):
 ```
 """
 
+    # Build a "session conduct" section that surfaces the candidate's choices
+    # to mute the mic, turn off the camera, or take breaks. The model is
+    # instructed below to fold these signals into the engagement score.
+    conduct_lines = []
+    if request.mic_off_seconds > 0:
+        conduct_lines.append(
+            f"- Microphone was muted (outside of breaks) for ~{request.mic_off_seconds // 60}m {request.mic_off_seconds % 60}s."
+        )
+    if request.video_off_seconds > 0:
+        conduct_lines.append(
+            f"- Camera was off (outside of breaks) for ~{request.video_off_seconds // 60}m {request.video_off_seconds % 60}s."
+        )
+    if request.breaks_taken > 0:
+        conduct_lines.append(
+            f"- Candidate requested {request.breaks_taken} break(s), pausing the interview for "
+            f"~{request.break_seconds_total // 60}m {request.break_seconds_total % 60}s in total."
+        )
+    if conduct_lines:
+        conduct_section = (
+            "\n## Session Conduct (penalty signals)\n"
+            + "\n".join(conduct_lines)
+            + "\nWhen scoring engagement (eyeContact, confidence) and the overall decision, "
+            "lower the relevant scores proportionally to reflect that the candidate disengaged "
+            "their camera/microphone or took breaks. Do not zero out the score — apply a "
+            "modest, proportional penalty.\n"
+        )
+    else:
+        conduct_section = ""
+
+    # Coding-only schema fragment — kept as its own variable for readability.
+    # We ask the model to produce inline `codeAnnotations` so the feedback page
+    # can render the candidate's code with reviewer-style comments above the
+    # specific lines that matter.
+    coding_schema = ""
+    if request.interview_type == "coding":
+        coding_schema = """,
+  "coding": {
+    "problemSolving": <1-5>,
+    "codeCorrectness": <1-5>,
+    "codeQuality": <1-5>,
+    "timeComplexity": "<detected>",
+    "optimalTimeComplexity": "<optimal>",
+    "spaceComplexity": "<detected>",
+    "optimalSpaceComplexity": "<optimal>",
+    "optimalCode": "<flawless optimal code snippet solving the problem constraints>",
+    "codeReviewSummary": "<one or two sentence overall verdict on the candidate's code: what works, what doesn't>",
+    "codeAnnotations": [
+      {
+        "line": <1-indexed line number in the candidate's code>,
+        "severity": "warning" | "suggestion" | "info" | "praise",
+        "message": "<short, specific reviewer comment — under 18 words>"
+      }
+    ],
+    "optimalCodeAnnotations": [
+      {
+        "line": <1-indexed line number in the optimal code>,
+        "severity": "info" | "praise",
+        "message": "<short note explaining a key technique used in the optimal solution>"
+      }
+    ]
+  }"""
+
     prompt = f"""You are a Staff Software Engineer at Google serving as a Bar Raiser. You are strictly evaluating a candidate's {request.interview_type} interview performance.
 Analyze the following interview transcript meticulously. Your job is to provide a comprehensive, rigorous, and highly actionable evaluation based on Google's actual hiring rubrics.
 Look for signal on: technical depth, problem-solving structuring, communication clarity, edge-case detection, leadership (for behavioral), and coding efficiency (for coding).
@@ -318,7 +385,7 @@ Look for signal on: technical depth, problem-solving structuring, communication 
 {transcript_text}
 
 {code_section}
-
+{conduct_section}
 ## Interview Duration: {request.time_used_seconds // 60} minutes used out of {request.duration_minutes} minutes
 
 Please respond with ONLY a valid JSON object (no markdown, no extra text) with this exact structure:
@@ -340,8 +407,15 @@ Please respond with ONLY a valid JSON object (no markdown, no extra text) with t
     "<detailed actionable recommendation 3>",
     "<detailed actionable recommendation 4>",
     "<detailed actionable recommendation 5>"
-  ]{"," + chr(10) + '  "coding": {' + chr(10) + '    "problemSolving": <1-5>,' + chr(10) + '    "codeCorrectness": <1-5>,' + chr(10) + '    "codeQuality": <1-5>,' + chr(10) + '    "timeComplexity": "<detected>",' + chr(10) + '    "optimalTimeComplexity": "<optimal>",' + chr(10) + '    "spaceComplexity": "<detected>",' + chr(10) + '    "optimalSpaceComplexity": "<optimal>",' + chr(10) + '    "optimalCode": "<flawless optimal code snippet solving the problem constraints>"' + chr(10) + '  }' if request.interview_type == "coding" else ""}
+  ]{coding_schema}
 }}
+
+For coding interviews, the `codeAnnotations` array MUST cite specific 1-indexed line numbers from the candidate's code (counting blank lines and comments) and each `message` must be a concrete, short reviewer note — e.g.:
+  - severity "warning":    something is wrong or risky (off-by-one, mutation issue, O(n^2) bottleneck, missing edge case)
+  - severity "suggestion": a clear way the code could be improved (use a hash map, extract a helper, simplify the branch)
+  - severity "info":       a non-judgmental observation worth flagging (data structure choice, traversal direction)
+  - severity "praise":     something the candidate did well (good naming, smart short-circuit, clean recursion base case)
+Aim for 4–8 annotations covering both issues AND wins. Do not annotate every line — pick the ones that materially shape the code review.
 
 Take a deep breath and analyze everything carefully. Base your scores exclusively on the ACTUAL conversation content and code provided. Do not be overly nice; give constructive, elite Google-level feedback.
 """
@@ -379,6 +453,11 @@ Take a deep breath and analyze everything carefully. Base your scores exclusivel
                 }
             # Inject user code manually to save Gemini generation tokens
             feedback["coding"]["userCode"] = request.code or ""
+            feedback["coding"]["language"] = request.language or "python"
+            # Defensive defaults so the UI never has to null-check the new fields.
+            feedback["coding"].setdefault("codeReviewSummary", "")
+            feedback["coding"].setdefault("codeAnnotations", [])
+            feedback["coding"].setdefault("optimalCodeAnnotations", [])
 
         # Store in session
         session = sessions.get(session_id)
