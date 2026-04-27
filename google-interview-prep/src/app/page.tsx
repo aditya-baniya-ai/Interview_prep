@@ -5,21 +5,21 @@ import { NavBrand } from "@/components/NavBrand";
 
 export default function Home() {
   return (
-    <div className={styles.landing}>
+    <div className={styles.landing} suppressHydrationWarning>
       {/* ---------- Navbar ---------- */}
-      <nav className={styles.navbar} id="main-nav">
+      <nav className={styles.navbar} id="main-nav" suppressHydrationWarning>
         <NavBrand />
-        <div className={styles.navActions}>
+        <div className={styles.navActions} suppressHydrationWarning>
           <ThemeToggle className={styles.themeToggle} />
-          <Link href="/login" className={styles.signInBtn}>
+          <Link href="/login" className={styles.signInBtn} suppressHydrationWarning>
             Sign In
           </Link>
         </div>
       </nav>
 
       {/* ---------- Hero ---------- */}
-      <section className={styles.hero} id="hero-section">
-        <div className={styles.heroBadge}>
+      <section className={styles.hero} id="hero-section" suppressHydrationWarning>
+        <div className={styles.heroBadge} suppressHydrationWarning>
           Powered by Google Gemini AI
         </div>
 
@@ -37,10 +37,10 @@ export default function Home() {
         </p>
 
         <div className={styles.heroCta}>
-          <Link href="/login" className={styles.ctaPrimary} id="cta-start">
+          <Link href="/login" className={styles.ctaPrimary} id="cta-start" suppressHydrationWarning>
             Start Practicing
           </Link>
-          <Link href="#features" className={styles.ctaSecondary} id="cta-learn-more">
+          <Link href="#features" className={styles.ctaSecondary} id="cta-learn-more" suppressHydrationWarning>
             Learn More
           </Link>
         </div>
@@ -62,7 +62,7 @@ export default function Home() {
       </section>
 
       {/* ---------- Features ---------- */}
-      <section className={styles.features} id="features">
+      <section className={styles.features} id="features" suppressHydrationWarning>
         <h2 className={styles.sectionTitle}>Everything You Need to Prepare</h2>
         <p className={styles.sectionSub}>
           A comprehensive AI-powered platform that simulates the full FAANG
@@ -128,7 +128,7 @@ export default function Home() {
       </section>
 
       {/* ---------- How It Works ---------- */}
-      <section className={styles.howItWorks} id="how-it-works">
+      <section className={styles.howItWorks} id="how-it-works" suppressHydrationWarning>
         <h2 className={styles.sectionTitle}>How It Works</h2>
         <p className={styles.sectionSub}>
           Three simple steps to a better interview performance.
@@ -180,7 +180,7 @@ export default function Home() {
             Sign in with your Google account and start your first FAANG
             mock interview in under a minute.
           </p>
-          <Link href="/login" className={styles.ctaPrimary} id="cta-bottom">
+          <Link href="/login" className={styles.ctaPrimary} id="cta-bottom" suppressHydrationWarning>
             Start Free Practice
           </Link>
         </div>
