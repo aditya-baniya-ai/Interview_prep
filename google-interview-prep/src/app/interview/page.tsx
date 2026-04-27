@@ -12,7 +12,7 @@ import {
 } from "@/lib/websocket";
 import { GeminiLiveClient } from "@/lib/gemini-live";
 import { db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "@firebase/firestore";
 import { NavBrand } from "@/components/NavBrand";
 import styles from "./interview.module.css";
 
@@ -85,6 +85,11 @@ function InterviewContent() {
   const [isRunningCode, setIsRunningCode] = useState(false);
   const [isAvatarMouthOpen, setIsAvatarMouthOpen] = useState(false);
 
+  // Break + penalty tracking
+  const [showBreakModal, setShowBreakModal] = useState(false);
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState(0);
+
   // Avatar speaking animation loop
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -107,11 +112,27 @@ function InterviewContent() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const breakTimerRef = useRef<NodeJS.Timeout | null>(null);
   const codeSnapshotRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptRef = useRef<TranscriptEntry[]>([]);
 
-  // Timer
+  // Penalty accumulators — total time mic / camera were off OUTSIDE of breaks,
+  // plus break stats. Sent to the feedback generator at the end of the interview.
+  const isOnBreakRef = useRef<boolean>(false);
+  const micOffStartRef = useRef<number | null>(null);
+  const videoOffStartRef = useRef<number | null>(null);
+  const micOffSecondsRef = useRef<number>(0);
+  const videoOffSecondsRef = useRef<number>(0);
+  const breakCountRef = useRef<number>(0);
+  const totalBreakSecondsRef = useRef<number>(0);
+  // Snapshot of mic/camera state at break start so we can restore it after.
+  const preBreakMicRef = useRef<boolean>(true);
+  const preBreakCamRef = useRef<boolean>(false);
+  const breakStartedAtRef = useRef<number | null>(null);
+
+  // Main interview timer — paused while the candidate is on break.
   useEffect(() => {
+    if (isOnBreak) return; // freeze main timer during a break
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -126,7 +147,26 @@ function InterviewContent() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isOnBreak]);
+
+  // Break timer — only runs while on break.
+  useEffect(() => {
+    if (!isOnBreak) return;
+    breakTimerRef.current = setInterval(() => {
+      setBreakSecondsLeft((prev) => {
+        if (prev <= 1) {
+          // Auto-end break when timer hits zero
+          endBreak();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => {
+      if (breakTimerRef.current) clearInterval(breakTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnBreak]);
 
   // Format time
   const formatTime = (seconds: number) => {
@@ -154,12 +194,44 @@ function InterviewContent() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+      // Close out any pending "video-off" penalty interval, but only if we
+      // weren't on a break (break time is tracked separately).
+      if (videoOffStartRef.current !== null && !isOnBreakRef.current) {
+        videoOffSecondsRef.current += Math.max(
+          0,
+          Math.floor((Date.now() - videoOffStartRef.current) / 1000)
+        );
+      }
+      videoOffStartRef.current = null;
       setIsWebcamActive(true);
     } catch (error) {
       console.error("Webcam access denied:", error);
       setIsWebcamActive(false);
     }
   }, []);
+
+  // Stop webcam — fully releases the camera so the OS-level "in use" indicator goes off.
+  const stopWebcam = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    if (videoOffStartRef.current === null && !isOnBreakRef.current) {
+      videoOffStartRef.current = Date.now();
+    }
+    setIsWebcamActive(false);
+  }, []);
+
+  const toggleWebcam = useCallback(() => {
+    if (isWebcamActive) {
+      stopWebcam();
+    } else {
+      startWebcam();
+    }
+  }, [isWebcamActive, startWebcam, stopWebcam]);
 
   useEffect(() => {
     startWebcam();
@@ -351,11 +423,39 @@ function InterviewContent() {
     setPhase("coding");
   };
 
-  const handleEndInterview = async () => {
+  // Function declaration (hoisted) so the timer effect above can reference it
+  // before the source-order definition.
+  async function handleEndInterview() {
     setShowEndModal(false);
     setIsGeneratingFeedback(true);
     if (timerRef.current) clearInterval(timerRef.current);
-    
+    if (breakTimerRef.current) clearInterval(breakTimerRef.current);
+
+    // Flush in-flight penalty timers so the totals we send are accurate.
+    const now = Date.now();
+    if (micOffStartRef.current !== null) {
+      micOffSecondsRef.current += Math.max(
+        0,
+        Math.floor((now - micOffStartRef.current) / 1000)
+      );
+      micOffStartRef.current = null;
+    }
+    if (videoOffStartRef.current !== null) {
+      videoOffSecondsRef.current += Math.max(
+        0,
+        Math.floor((now - videoOffStartRef.current) / 1000)
+      );
+      videoOffStartRef.current = null;
+    }
+    if (isOnBreakRef.current && breakStartedAtRef.current !== null) {
+      totalBreakSecondsRef.current += Math.max(
+        0,
+        Math.floor((now - breakStartedAtRef.current) / 1000)
+      );
+      breakStartedAtRef.current = null;
+      isOnBreakRef.current = false;
+    }
+
     // Disconnect Gemini
     if (geminiRef.current) {
       geminiRef.current.disconnect();
@@ -374,6 +474,10 @@ function InterviewContent() {
           language: interviewType === "coding" ? selectedLanguage : undefined,
           duration_minutes: durationMinutes,
           time_used_seconds: durationMinutes * 60 - timeLeft,
+          mic_off_seconds: micOffSecondsRef.current,
+          video_off_seconds: videoOffSecondsRef.current,
+          breaks_taken: breakCountRef.current,
+          break_seconds_total: totalBreakSecondsRef.current,
         }),
       });
         if (res.ok) {
@@ -402,24 +506,111 @@ function InterviewContent() {
     }
     
     router.push(`/interview/feedback?sid=${sessionId}&type=${interviewType}`);
-  };
+  }
+
+  const muteMic = useCallback(() => {
+    if (geminiRef.current) geminiRef.current.stopMicrophone();
+    if (micOffStartRef.current === null && !isOnBreakRef.current) {
+      micOffStartRef.current = Date.now();
+    }
+    setIsMicActive(false);
+    setAudioStatus("idle");
+  }, []);
+
+  const unmuteMic = useCallback(() => {
+    if (geminiRef.current) geminiRef.current.startMicrophone();
+    if (micOffStartRef.current !== null && !isOnBreakRef.current) {
+      micOffSecondsRef.current += Math.max(
+        0,
+        Math.floor((Date.now() - micOffStartRef.current) / 1000)
+      );
+    }
+    micOffStartRef.current = null;
+    setIsMicActive(true);
+    setAudioStatus("listening");
+  }, []);
 
   const toggleMic = () => {
-    if (geminiRef.current) {
+    if (isMicActive) muteMic();
+    else unmuteMic();
+  };
+
+  // ── Break flow ──────────────────────────────────────────────────────────────
+  // When a break starts: freeze main timer, mute mic, stop camera, remember
+  // pre-break state. When it ends: restore mic/camera and resume the main timer.
+  const startBreak = useCallback(
+    (minutes: number) => {
+      if (isOnBreak) return;
+      preBreakMicRef.current = isMicActive;
+      preBreakCamRef.current = isWebcamActive;
+      // Stop accumulating mic-off / video-off penalty during the break
+      // (the break itself has its own counter).
+      if (micOffStartRef.current !== null) {
+        micOffSecondsRef.current += Math.max(
+          0,
+          Math.floor((Date.now() - micOffStartRef.current) / 1000)
+        );
+        micOffStartRef.current = null;
+      }
+      if (videoOffStartRef.current !== null) {
+        videoOffSecondsRef.current += Math.max(
+          0,
+          Math.floor((Date.now() - videoOffStartRef.current) / 1000)
+        );
+        videoOffStartRef.current = null;
+      }
+      isOnBreakRef.current = true;
+      breakStartedAtRef.current = Date.now();
+      setIsOnBreak(true);
+      setBreakSecondsLeft(minutes * 60);
+      setShowBreakModal(false);
+      // Mute mic + stop camera for the duration of the break
       if (isMicActive) {
-        geminiRef.current.stopMicrophone();
+        if (geminiRef.current) geminiRef.current.stopMicrophone();
         setIsMicActive(false);
         setAudioStatus("idle");
-      } else {
-        geminiRef.current.startMicrophone();
-        setIsMicActive(true);
-        setAudioStatus("listening");
       }
-    } else {
-      setIsMicActive(!isMicActive);
-      setAudioStatus(isMicActive ? "idle" : "listening");
+      if (isWebcamActive) {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+        if (videoRef.current) videoRef.current.srcObject = null;
+        setIsWebcamActive(false);
+      }
+      breakCountRef.current += 1;
+    },
+    [isOnBreak, isMicActive, isWebcamActive]
+  );
+
+  // Resume from a break: flush the break-time counter, restore mic/camera, and
+  // let the main timer effect tick again (driven by the isOnBreak state flip).
+  // Function declaration (hoisted) so the break-timer effect above can call it.
+  async function endBreak() {
+    if (!isOnBreakRef.current) return;
+    if (breakStartedAtRef.current !== null) {
+      const consumed = Math.max(
+        0,
+        Math.floor((Date.now() - breakStartedAtRef.current) / 1000)
+      );
+      totalBreakSecondsRef.current += consumed;
+      breakStartedAtRef.current = null;
     }
-  };
+    isOnBreakRef.current = false;
+    setIsOnBreak(false);
+    setBreakSecondsLeft(0);
+    if (breakTimerRef.current) {
+      clearInterval(breakTimerRef.current);
+      breakTimerRef.current = null;
+    }
+    // Restore pre-break mic/camera state
+    if (preBreakMicRef.current) {
+      unmuteMic();
+    }
+    if (preBreakCamRef.current) {
+      await startWebcam();
+    }
+  }
 
   const handleLanguageChange = (newLang: string) => {
     setSelectedLanguage(newLang);
@@ -632,6 +823,22 @@ function InterviewContent() {
               >
                 {isMicActive ? "🎤" : "🔇"}
               </button>
+              <button
+                className={`${styles.controlBtn} ${!isWebcamActive ? styles.controlBtnMuted : ""}`}
+                onClick={toggleWebcam}
+                title={isWebcamActive ? "Stop camera" : "Start camera"}
+                suppressHydrationWarning
+              >
+                {isWebcamActive ? "📷" : "📵"}
+              </button>
+              <button
+                className={styles.breakBtn}
+                onClick={() => setShowBreakModal(true)}
+                title="Take a short break (counts against your feedback score)"
+                suppressHydrationWarning
+              >
+                ☕ Take a break
+              </button>
               <div className={styles.audioStatusBadge}>
                 {audioStatus === "listening" && "Listening..."}
                 {audioStatus === "speaking" && "Sarah is speaking..."}
@@ -712,6 +919,22 @@ function InterviewContent() {
               <button className={`${styles.controlBtn} ${!isMicActive ? styles.controlBtnMuted : ""}`} onClick={toggleMic} title={isMicActive ? "Mute" : "Unmute"} suppressHydrationWarning>
                 {isMicActive ? "🎤" : "🔇"}
               </button>
+              <button
+                className={`${styles.controlBtn} ${!isWebcamActive ? styles.controlBtnMuted : ""}`}
+                onClick={toggleWebcam}
+                title={isWebcamActive ? "Stop camera" : "Start camera"}
+                suppressHydrationWarning
+              >
+                {isWebcamActive ? "📷" : "📵"}
+              </button>
+              <button
+                className={`${styles.breakBtn} ${styles.breakBtnCompact}`}
+                onClick={() => setShowBreakModal(true)}
+                title="Take a short break (counts against your feedback score)"
+                suppressHydrationWarning
+              >
+                ☕ Break
+              </button>
               <div className={styles.audioStatusBadge}>
                 {audioStatus === "listening" && "Listening..."}
                 {audioStatus === "speaking" && "Sarah is speaking..."}
@@ -750,6 +973,77 @@ function InterviewContent() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Break Picker Modal ---------- */}
+      {showBreakModal && !isOnBreak && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setShowBreakModal(false)}
+        >
+          <div
+            className={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalIcon}>☕</div>
+            <h2 className={styles.modalTitle}>Take a Break?</h2>
+            <p className={styles.modalDesc}>
+              Your mic and camera will turn off and the main timer will pause.
+              Taking a break will count against your final feedback score.
+            </p>
+            <div className={styles.breakOptionRow}>
+              <button
+                className={styles.breakOptionBtn}
+                onClick={() => startBreak(5)}
+                suppressHydrationWarning
+              >
+                <span className={styles.breakOptionMinutes}>5</span>
+                <span className={styles.breakOptionLabel}>minutes</span>
+              </button>
+              <button
+                className={styles.breakOptionBtn}
+                onClick={() => startBreak(10)}
+                suppressHydrationWarning
+              >
+                <span className={styles.breakOptionMinutes}>10</span>
+                <span className={styles.breakOptionLabel}>minutes</span>
+              </button>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowBreakModal(false)}
+              >
+                Never mind
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- On-Break Overlay ---------- */}
+      {isOnBreak && (
+        <div className={styles.breakOverlay}>
+          <div className={styles.breakCard}>
+            <div className={styles.breakIcon}>☕</div>
+            <p className={styles.breakKicker}>Interview paused — you&apos;re on a break</p>
+            <div className={styles.breakCountdown}>{formatTime(breakSecondsLeft)}</div>
+            <p className={styles.breakSub}>
+              Mic and camera are off. Main timer is frozen at{" "}
+              <strong>{formatTime(timeLeft)}</strong>.
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={endBreak}
+              suppressHydrationWarning
+            >
+              I&apos;m back — resume interview
+            </button>
+            <p className={styles.breakNote}>
+              Heads up: breaks reduce your engagement score.
+            </p>
           </div>
         </div>
       )}

@@ -137,15 +137,16 @@
 .videoStack {
   padding: 12px 12px 8px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   flex-shrink: 0;
 }
 
 .videoTileStacked {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 14px;
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
   overflow: hidden;
   position: relative;
   background: rgba(255, 255, 255, 0.04);
@@ -153,8 +154,22 @@
   transition: border-color 0.35s ease, box-shadow 0.35s ease;
 }
 
+/* In the coding phase the video tiles are small thumbnails — bump the avatar up
+   so it remains recognizable next to the user's webcam tile. */
+.videoTileStacked .aiAvatarFullImg {
+  width: 78%;
+}
+
+.videoTileStacked .videoTileLabel {
+  bottom: 8px;
+  left: 8px;
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
 .codingTranscript {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -853,6 +868,152 @@
   display: flex;
   gap: var(--space-3);
   justify-content: center;
+}
+
+/* ---------- Break Button (in mic/camera control row) ---------- */
+.breakBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  letter-spacing: 0.01em;
+}
+
+.breakBtn:hover {
+  background: rgba(251, 188, 4, 0.16);
+  border-color: rgba(251, 188, 4, 0.45);
+  color: #fef7e0;
+  transform: translateY(-1px);
+}
+
+.breakBtnCompact {
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 18px;
+}
+
+/* ---------- Break Picker (inside modal) ---------- */
+.breakOptionRow {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-bottom: var(--space-5);
+}
+
+.breakOptionBtn {
+  flex: 1;
+  max-width: 140px;
+  padding: var(--space-4) var(--space-3);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  color: #E8EAED;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.breakOptionBtn:hover {
+  background: rgba(251, 188, 4, 0.14);
+  border-color: rgba(251, 188, 4, 0.55);
+  transform: translateY(-2px);
+}
+
+.breakOptionMinutes {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  font-family: var(--font-display, inherit);
+  color: #fbbc04;
+}
+
+.breakOptionLabel {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- On-Break Overlay ---------- */
+.breakOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: radial-gradient(circle at 50% 30%, rgba(251, 188, 4, 0.12) 0%, rgba(12, 12, 14, 0.96) 60%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.breakCard {
+  width: 90%;
+  max-width: 460px;
+  padding: var(--space-8);
+  background: rgba(48, 49, 52, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.breakIcon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.breakKicker {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.breakCountdown {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 64px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fbbc04;
+  margin: var(--space-2) 0;
+  text-shadow: 0 0 24px rgba(251, 188, 4, 0.35);
+}
+
+.breakSub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 var(--space-3);
+  line-height: 1.5;
+}
+
+.breakSub strong {
+  color: #E8EAED;
+  font-weight: 600;
+}
+
+.breakNote {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: var(--space-2) 0 0;
 }
 
 /* ---------- Generating Feedback ---------- */
