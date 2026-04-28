@@ -7,6 +7,7 @@ Main server that handles:
 - Integration with Google ADK agents and Gemini Live API
 """
 
+import os
 import json
 import asyncio
 import logging
@@ -225,6 +226,31 @@ async def run_code(request: RunCodeRequest):
     )
 
     return {"results": results}
+
+
+@app.get("/api/questions")
+async def list_questions(company: Optional[str] = None, difficulty: Optional[str] = None):
+    """Query practice questions from Firestore with optional filters."""
+    import firebase_admin
+    from firebase_admin import credentials as fb_credentials, firestore as fb_firestore
+
+    if not firebase_admin._apps:
+        sa_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
+        fb_cred = fb_credentials.Certificate(sa_path)
+        firebase_admin.initialize_app(fb_cred, {"projectId": "interview-prep-cb612"})
+
+    fs = fb_firestore.client()
+    ref = fs.collection("questions")
+
+    if company:
+        ref = ref.where("company", "==", company)
+    if difficulty:
+        ref = ref.where("difficulty", "==", difficulty)
+
+    docs = ref.limit(20).stream()
+    results = [doc.to_dict() for doc in docs]
+    results.sort(key=lambda q: q.get("acceptance_rate", 0), reverse=True)
+    return results
 
 
 @app.get("/api/problems")
