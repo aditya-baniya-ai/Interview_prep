@@ -40,11 +40,10 @@ const LANGUAGE_DISPLAY: Record<string, string> = {
 };
 
 const DEFAULT_CODE: Record<string, string> = {
-  python: '# Write your solution here\n\ndef solution():\n    pass\n',
-  javascript:
-    "// Write your solution here\n\nfunction solution() {\n  \n}\n",
-  java: '// Write your solution here\n\npublic class Solution {\n    public static void main(String[] args) {\n        \n    }\n}\n',
-  cpp: '// Write your solution here\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n',
+  python: 'class Solution():\n    pass\n',
+  javascript: 'class Solution {}\n',
+  java: 'class Solution {}\n',
+  cpp: 'class Solution {};\n',
 };
 
 function InterviewContent() {
@@ -1073,12 +1072,6 @@ function InterviewContent() {
 
           {/* Right: IDE + problem */}
           <div className={styles.rightPanel}>
-            {problem && (
-              <div className={styles.problemBar}>
-                <span className={styles.problemTitle}>{problem.title}</span>
-                <span className={`${styles.problemDifficulty} ${styles.difficultyMedium}`}>{problem.difficulty}</span>
-              </div>
-            )}
             <div className={styles.editorSection}>
               <div className={styles.editorToolbar}>
                 <div className={styles.editorToolbarLeft}>

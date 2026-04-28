@@ -145,24 +145,29 @@ async def get_live_token(request: LiveTokenRequest):
     The frontend uses this token to connect directly to Gemini's
     WebSocket endpoint for lowest-latency voice conversations.
     """
-    # Get the system instruction based on interview type and problem
-    problem = None
+    # Get or create session
+    session = None
     if request.session_id and request.session_id in sessions:
-        problem = sessions[request.session_id].problem
+        session = sessions[request.session_id]
+    elif request.session_id:
+        # Create session if it doesn't exist
+        session = InterviewSession(
+            session_id=request.session_id,
+            interview_type=request.interview_type,
+            language="python",
+            duration=45
+        )
+        sessions[request.session_id] = session
     
-    if not problem and request.interview_type == "coding":
-        from tools.problem_bank import get_random_problem
-        problem = get_random_problem(difficulty=request.difficulty)
-        # We can store the session if we want, but at minimum pass the problem
-        if request.session_id and request.session_id not in sessions:
-            sessions[request.session_id] = InterviewSession(
-                session_id=request.session_id,
-                interview_type=request.interview_type,
-                language="python",
-                duration=45
-            )
-        if request.session_id:
-            sessions[request.session_id].problem = problem
+    # Get or select problem for the session
+    problem = None
+    if session:
+        problem = session.problem
+        if not problem and request.interview_type == "coding":
+            # Select a problem and store it in the session
+            problem = get_random_problem(difficulty=request.difficulty or "Medium")
+            session.problem = problem
+            logger.info(f"📌 Problem selected for session {request.session_id}: {problem.get('title', 'Unknown')}")
 
     system_instruction = get_interviewer_system_instruction(
         request.interview_type, problem, request.resume_text
@@ -561,6 +566,11 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
         sessions[session_id] = session
 
     logger.info(f"🔌 WebSocket connected: {session_id}")
+
+    # For coding interviews, ensure the session has a problem selected
+    if session.interview_type == "coding" and not session.problem:
+        session.problem = get_random_problem(difficulty="Medium")
+        logger.info(f"📌 Problem selected for session {session_id}: {session.problem.get('title', 'Unknown')}")
 
     # Send welcome message
     welcome_text = (
