@@ -304,9 +304,155 @@
 }
 .historyItem:hover { box-shadow: var(--shadow-hover); }
 
+/* ---------- Practice Questions ---------- */
+.practiceSection {
+  margin-bottom: var(--space-10);
+  animation: fadeInUp 0.9s ease-out;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.filterPill {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+.filterPill:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+.filterPillActive {
+  border-color: var(--accent-blue);
+  background: #E8F0FE;
+  color: var(--accent-blue);
+}
+[data-theme="dark"] .filterPillActive {
+  background: rgba(26, 115, 232, 0.15);
+}
+
+.filterDivider {
+  width: 1px;
+  background: var(--border);
+  margin: 0 var(--space-2);
+  align-self: stretch;
+}
+
+.questionCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.questionCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  transition: box-shadow 0.2s ease;
+}
+.questionCard:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.questionLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.questionTitle {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.questionTopics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.topicTag {
+  padding: 1px var(--space-2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.questionRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.diffBadge {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.diffEasy {
+  background: rgba(52, 168, 83, 0.12);
+  color: var(--accent-green);
+}
+.diffMedium {
+  background: rgba(251, 188, 4, 0.12);
+  color: #F29900;
+}
+.diffHard {
+  background: rgba(234, 67, 53, 0.12);
+  color: var(--accent-red);
+}
+
+.extLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.extLink:hover {
+  background: var(--bg-secondary);
+  color: var(--accent-blue);
+}
+
+.questionsEmpty {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 768px) {
   .interviewTypes { grid-template-columns: 1fr; }
   .configGrid     { grid-template-columns: 1fr; }
   .dashContent    { padding: var(--space-6) var(--space-4); }
+  .questionCard   { flex-direction: column; gap: var(--space-2); }
+  .questionRight  { align-self: flex-end; }
 }
+
