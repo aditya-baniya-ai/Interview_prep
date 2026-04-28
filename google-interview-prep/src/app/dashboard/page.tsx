@@ -135,6 +135,12 @@ export default function DashboardPage() {
     router.push(`/interview?${params.toString()}&sid=${sessionId}`);
   };
 
+  const diffClass = (d: string) => {
+    if (d === "Easy") return styles.diffEasy;
+    if (d === "Medium") return styles.diffMedium;
+    return styles.diffHard;
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return "U";
     return name
@@ -318,6 +324,75 @@ export default function DashboardPage() {
           >
             Start Interview Session
           </button>
+        </div>
+
+        {/* ---------- Practice Questions ---------- */}
+        <div className={styles.practiceSection}>
+          <h2 className={styles.startSectionTitle}>Practice Questions</h2>
+          <div className={styles.filterRow}>
+            {COMPANIES.map((c) => (
+              <button
+                key={c}
+                className={`${styles.filterPill} ${selectedCompany === c ? styles.filterPillActive : ""}`}
+                onClick={() => setSelectedCompany(selectedCompany === c ? null : c)}
+                id={`filter-company-${c.toLowerCase()}`}
+              >
+                {c}
+              </button>
+            ))}
+            <div className={styles.filterDivider} />
+            {DIFFICULTY_OPTIONS.map((d) => (
+              <button
+                key={d}
+                className={`${styles.filterPill} ${selectedDifficulty === d ? styles.filterPillActive : ""}`}
+                onClick={() => setSelectedDifficulty(selectedDifficulty === d ? null : d)}
+                id={`filter-diff-${d.toLowerCase()}`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          {questionsLoading ? (
+            <div className={styles.questionsEmpty}>Loading...</div>
+          ) : questions.length === 0 ? (
+            <div className={styles.questionsEmpty}>
+              No questions found. Try adjusting your filters.
+            </div>
+          ) : (
+            <div className={styles.questionCards}>
+              {questions.map((q) => (
+                <div key={q.id} className={styles.questionCard}>
+                  <div className={styles.questionLeft}>
+                    <h3 className={styles.questionTitle}>{q.title}</h3>
+                    <div className={styles.questionTopics}>
+                      {q.topics.map((t) => (
+                        <span key={t} className={styles.topicTag}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={styles.questionRight}>
+                    <span className={`${styles.diffBadge} ${diffClass(q.difficulty)}`}>
+                      {q.difficulty}
+                    </span>
+                    <a
+                      href={q.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.extLink}
+                      title="Open on LeetCode"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ---------- History ---------- */}
