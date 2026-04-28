@@ -130,6 +130,55 @@ function InterviewContent() {
   const preBreakCamRef = useRef<boolean>(false);
   const breakStartedAtRef = useRef<number | null>(null);
 
+  // Mirror of audioStatus, readable from any callback closure (Web Speech
+  // recognition handler, Gemini onTranscriptUpdate) without having to rebuild
+  // those closures on every state change.
+  const audioStatusRef = useRef<"idle" | "listening" | "speaking">("idle");
+  // Web Speech API recognizer + lifecycle bookkeeping. The recognizer buffers
+  // audio internally and emits final results after its end-of-utterance
+  // detector fires — meaning AI bleed-through that the recognizer "heard"
+  // during AI playback would land in the "You" bubble the moment the AI
+  // stops talking. To prevent that we abort() the recognizer for the entire
+  // duration of AI speech (which discards its buffer) and start() it fresh
+  // once the AI is silent.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const recognitionRunningRef = useRef<boolean>(false);
+  // Are we *trying* to keep the recognizer running right now? Toggled by the
+  // audioStatus effect; consulted by onend to decide whether to auto-restart.
+  const recognitionWantRunningRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    audioStatusRef.current = audioStatus;
+    // Drive the recognizer based on AI speaking state.
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    if (audioStatus === "speaking") {
+      // Abort, NOT stop — abort() discards any buffered audio so it can't
+      // be transcribed once the AI finishes. stop() would emit a final
+      // result for everything captured so far (including AI bleed).
+      recognitionWantRunningRef.current = false;
+      if (recognitionRunningRef.current) {
+        try {
+          recognition.abort();
+        } catch {
+          // already stopping/stopped
+        }
+      }
+    } else if (isMicActive) {
+      // AI silent and mic on — make sure the recognizer is running.
+      recognitionWantRunningRef.current = true;
+      if (!recognitionRunningRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // start() throws if it's already running or in a transitional
+          // state; onend will pick up the slack and restart if needed.
+        }
+      }
+    }
+  }, [audioStatus, isMicActive]);
+
   // Main interview timer — paused while the candidate is on break.
   useEffect(() => {
     if (isOnBreak) return; // freeze main timer during a break
@@ -175,11 +224,16 @@ function InterviewContent() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Auto-scroll chat
+  // Auto-scroll chat — but ONLY when the user is already near the bottom of
+  // the feed. If they've scrolled up to read earlier messages we leave the
+  // scroll position alone so a new message doesn't yank them back down.
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const STICK_THRESHOLD_PX = 80;
+    if (distanceFromBottom <= STICK_THRESHOLD_PX) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [transcript, userInterim, aiInterim]);
 
@@ -256,6 +310,15 @@ function InterviewContent() {
       difficulty,
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
+        // Defensive gate: while the AI is speaking, ignore any user-side
+        // transcription updates (interim OR final). Even with the audio
+        // gate in gemini-live.ts, in-flight inputTranscription messages
+        // for frames sent moments earlier can still arrive after AI
+        // playback has begun — this stops those late echoes from being
+        // attributed to the candidate.
+        if (sp === "user" && audioStatusRef.current === "speaking") {
+          return;
+        }
         if (!isFinal) {
           if (sp === "user") setUserInterim(text);
           else setAiInterim(text);
@@ -302,7 +365,11 @@ function InterviewContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Local Web Speech API for instant visual transcription (interim only)
+  // Local Web Speech API for instant visual transcription (interim only).
+  // The recognizer's lifecycle is driven by two effects:
+  //   - This one creates / tears down the recognizer when the mic toggles.
+  //   - The audioStatus effect above abort()s and start()s it across AI
+  //     playback boundaries so AI bleed-through never gets transcribed.
   useEffect(() => {
     if (!isMicActive || typeof window === "undefined") return;
 
@@ -316,6 +383,12 @@ function InterviewContent() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
+      // Defensive: even with start/abort lifecycle control, an interim
+      // result might race into this handler right at the AI playback
+      // boundary. Suppress it.
+      if (audioStatusRef.current === "speaking") {
+        return;
+      }
       let interimTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (!event.results[i].isFinal) {
@@ -327,14 +400,60 @@ function InterviewContent() {
       }
     };
 
-    try {
-      recognition.start();
-    } catch {
-      // Ignore if recognition is already started
+    recognition.onstart = () => {
+      recognitionRunningRef.current = true;
+    };
+
+    // The recognizer can end for several reasons: we explicitly aborted it,
+    // the user fell silent (continuous=true normally keeps it alive but
+    // some browsers still time out), or an error occurred. If we still
+    // want it running and the AI isn't currently speaking, restart it.
+    recognition.onend = () => {
+      recognitionRunningRef.current = false;
+      if (
+        recognitionWantRunningRef.current &&
+        audioStatusRef.current !== "speaking" &&
+        recognitionRef.current === recognition
+      ) {
+        try {
+          recognition.start();
+        } catch {
+          // Browser is in a transitional state; the next render of the
+          // audioStatus effect will retry.
+        }
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
+      // 'aborted' is expected (we triggered it ourselves). Log the rest.
+      if (event?.error && event.error !== "aborted") {
+        console.warn("SpeechRecognition error:", event.error);
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    // Don't start the recognizer immediately if the AI is already speaking
+    // when the mic flips on (e.g., on initial connect). The audioStatus
+    // effect will start it as soon as the AI is silent.
+    if (audioStatusRef.current !== "speaking") {
+      recognitionWantRunningRef.current = true;
+      try {
+        recognition.start();
+      } catch {
+        // Ignore if recognition is already started
+      }
     }
 
     return () => {
-      recognition.stop();
+      recognitionWantRunningRef.current = false;
+      recognitionRef.current = null;
+      try {
+        recognition.abort();
+      } catch {
+        // already stopped
+      }
     };
   }, [isMicActive]);
 
