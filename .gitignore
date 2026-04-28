@@ -7,3 +7,6 @@ coverage
 .env
 .env.local
 .env.*.local
+.claude/
+CLAUDE.md
+AGENTS.md
