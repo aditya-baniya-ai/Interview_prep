@@ -10,3 +10,4 @@ coverage
 .claude/
 CLAUDE.md
 AGENTS.md
+serviceAccountKey.json
