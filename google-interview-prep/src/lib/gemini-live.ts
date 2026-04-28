@@ -46,6 +46,41 @@ export class GeminiLiveClient {
   private userTranscriptBuffer = "";
   private aiTranscriptBuffer = "";
 
+  // ── Greeting + VAD (voice-activity detection) state ─────────────────────
+  // Greeting: nudge the model to greet the candidate ~2s after setup if it
+  // hasn't already started speaking on its own.
+  private static readonly GREETING_DELAY_MS = 2000;
+  private greetingTimer: ReturnType<typeof setTimeout> | null = null;
+  private aiHasSpokenThisSession = false;
+
+  // VAD thresholds — calibrated for typical laptop mics. RMS is computed on
+  // Float32 samples in [-1, 1], so:
+  //   < 0.012   = silence / room tone
+  //   0.012-0.03 = soft sounds, distant speech, keyboard taps (ignore)
+  //   > 0.04    = sustained voice (treat as speech)
+  // We require N *consecutive* loud frames before declaring speech, which
+  // filters out short transients like coughs, key clicks, or chair creaks.
+  private static readonly VAD_SPEECH_THRESHOLD = 0.04;
+  private static readonly VAD_MIN_CONSECUTIVE_FRAMES = 2; // ~512ms at 4096-sample frames
+  // While the AI is playing, the speaker→mic echo bleed (typically RMS ~0.02–
+  // 0.05 even with echoCancellation: true) can falsely trip the speech VAD.
+  // We use a stricter threshold + more sustained frames for barge-in so only
+  // the candidate's actual voice can interrupt.
+  private static readonly VAD_BARGE_IN_THRESHOLD = 0.07;
+  private static readonly VAD_MIN_BARGE_IN_FRAMES = 3; // ~768ms sustained voice
+  private vadConsecutiveLoudFrames = 0;
+
+  // Barge-in grace period: don't let the AI's own audio (bleeding through the
+  // speakers into the mic) cancel its first words. Echo cancellation is on,
+  // but this is a belt-and-braces guard.
+  private static readonly BARGE_IN_GRACE_MS = 500;
+  // Tail gate: once AI playback ends, wait this long before forwarding mic
+  // audio to Gemini again. Prevents the speaker's audio tail (still bleeding
+  // into the mic for a few ms) from being shipped upstream.
+  private static readonly POST_PLAYBACK_GATE_MS = 300;
+  private playbackStartedAt = 0;
+  private playbackEndedAt = 0;
+
   constructor(config: GeminiLiveConfig) {
     this.config = config;
   }
@@ -155,8 +190,12 @@ export class GeminiLiveClient {
 
         // Initialize playback audio context
         this.playbackContext = new AudioContext({ sampleRate: 24000 });
-        // The AI will auto-greet based on the system instruction
-        // once microphone audio starts flowing
+
+        // Kick the model into greeting the candidate ~2 seconds after the
+        // session is ready. If the AI starts speaking on its own first
+        // (e.g., from mic audio), the timer is cancelled in the modelTurn
+        // branch below.
+        this.scheduleGreeting();
         return;
       }
 
@@ -166,6 +205,13 @@ export class GeminiLiveClient {
 
         // Audio data from the model
         if (serverContent.modelTurn?.parts) {
+          // The model has started speaking — cancel any pending greeting
+          // nudge so we don't double-trigger.
+          this.aiHasSpokenThisSession = true;
+          if (this.greetingTimer !== null) {
+            clearTimeout(this.greetingTimer);
+            this.greetingTimer = null;
+          }
           for (const part of serverContent.modelTurn.parts) {
             if (part.inlineData) {
               this.playAudioChunk(part.inlineData.data);
@@ -244,6 +290,49 @@ export class GeminiLiveClient {
   }
 
   /**
+   * Schedule a one-shot greeting trigger ~2s after the session is set up.
+   * If the model has already started speaking by then (e.g., responding to
+   * mic audio), this is a no-op.
+   */
+  private scheduleGreeting(): void {
+    if (this.greetingTimer !== null) return;
+    this.greetingTimer = setTimeout(() => {
+      this.greetingTimer = null;
+      if (this.aiHasSpokenThisSession) return;
+      this.triggerGreeting();
+    }, GeminiLiveClient.GREETING_DELAY_MS);
+  }
+
+  /**
+   * Send a tiny clientContent nudge that asks the model to begin. The system
+   * instruction already tells the model exactly how to greet, so this is just
+   * the "go" signal. Sent as a user-role text turn because that's the only
+   * role Gemini Live's clientContent accepts; it's not visible in any
+   * transcription stream so it stays invisible to the candidate.
+   */
+  private triggerGreeting(): void {
+    if (!this.ws || !this.isConnected || this.aiHasSpokenThisSession) return;
+    console.log("👋 Triggering 2s greeting kickoff");
+    this.ws.send(
+      JSON.stringify({
+        clientContent: {
+          turns: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: "Please begin the interview now. Greet me warmly and ask your first question.",
+                },
+              ],
+            },
+          ],
+          turnComplete: true,
+        },
+      }),
+    );
+  }
+
+  /**
    * Start capturing microphone audio and streaming to Gemini
    */
   async startMicrophone(): Promise<void> {
@@ -277,6 +366,78 @@ export class GeminiLiveClient {
         if (!this.isConnected || !this.ws || !this.isMicActive) return;
 
         const inputData = event.inputBuffer.getChannelData(0);
+
+        // ── Local VAD ──────────────────────────────────────────────────
+        // Compute root-mean-square (RMS) energy of this 4096-sample frame.
+        // RMS is a clean proxy for "loudness" that ignores phase and DC
+        // offset, which makes it more robust than simple peak detection
+        // for telling speech apart from steady background noise.
+        let sumSq = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          sumSq += inputData[i] * inputData[i];
+        }
+        const rms = Math.sqrt(sumSq / inputData.length);
+
+        const now = performance.now();
+        const isAiTalking = this.isPlaying;
+        const inAiStartGrace =
+          isAiTalking &&
+          now - this.playbackStartedAt < GeminiLiveClient.BARGE_IN_GRACE_MS;
+        const inTailGate =
+          !isAiTalking &&
+          this.playbackEndedAt > 0 &&
+          now - this.playbackEndedAt < GeminiLiveClient.POST_PLAYBACK_GATE_MS;
+
+        // Use a stricter VAD when the AI is making sound (or just stopped),
+        // because the speaker→mic bleed adds energy that would otherwise
+        // false-positive the speech detector.
+        const threshold =
+          isAiTalking || inTailGate
+            ? GeminiLiveClient.VAD_BARGE_IN_THRESHOLD
+            : GeminiLiveClient.VAD_SPEECH_THRESHOLD;
+        const minFrames = isAiTalking
+          ? GeminiLiveClient.VAD_MIN_BARGE_IN_FRAMES
+          : GeminiLiveClient.VAD_MIN_CONSECUTIVE_FRAMES;
+
+        if (rms > threshold) {
+          this.vadConsecutiveLoudFrames++;
+        } else {
+          // Quiet frame — reset the streak. Background noise (room tone,
+          // hum, distant chatter, typing) lives below the threshold so it
+          // never accumulates here.
+          this.vadConsecutiveLoudFrames = 0;
+        }
+
+        // Local barge-in: if we've heard the user *sustainably* (multiple
+        // consecutive loud frames) while the AI is currently talking,
+        // stop playback right now instead of waiting for Gemini's
+        // server-side `interrupted` event to round-trip back to us.
+        // Skip barge-in for the first ~500ms of AI playback so the AI's
+        // own audio bleeding through the speakers can't cancel itself.
+        if (
+          isAiTalking &&
+          !inAiStartGrace &&
+          this.vadConsecutiveLoudFrames >= minFrames
+        ) {
+          console.log("🛑 Local barge-in (user is speaking)");
+          this.stopPlayback();
+          // Continue to the gate check below — the gate is now open
+          // because stopPlayback flipped isPlaying off.
+        }
+
+        // ── CRITICAL: AUDIO GATE ──────────────────────────────────────
+        // While the AI is playing — and for a short tail window after it
+        // stops — DO NOT forward mic frames to Gemini. The browser's
+        // echoCancellation flag in getUserMedia doesn't reliably suppress
+        // audio played through the Web Audio API graph (it was designed
+        // for HTMLAudioElement / WebRTC playback), so the AI's own voice
+        // bleeds back into the mic. Without this gate, Gemini transcribes
+        // the AI's voice as the candidate, gets confused about whose turn
+        // it is, and the AI ends up "talking to itself" instead of
+        // waiting for an answer.
+        if (this.isPlaying || inTailGate) {
+          return;
+        }
 
         // Convert Float32 to Int16 PCM
         const pcmData = this.float32ToInt16(inputData);
@@ -430,9 +591,21 @@ export class GeminiLiveClient {
         this.activeSources = this.activeSources.filter((s) => s !== source);
         if (this.activeSources.length === 0) {
           this.isPlaying = false;
+          this.playbackStartedAt = 0;
+          // AI just finished its turn naturally. Start the tail-gate clock
+          // so the next ~300ms of mic frames (which may still contain
+          // speaker bleed-through) are NOT forwarded to Gemini.
+          this.playbackEndedAt = performance.now();
         }
       };
 
+      // Mark when AI playback began. Used by the VAD to honor a short grace
+      // period before allowing barge-in (so the AI's own first words can't
+      // cancel themselves through speaker→mic bleed).
+      if (!this.isPlaying) {
+        this.playbackStartedAt = performance.now();
+        this.playbackEndedAt = 0; // not in tail-gate while actively playing
+      }
       this.isPlaying = true;
       this.config.onAudioStateChange(true);
     } catch (error) {
@@ -455,6 +628,11 @@ export class GeminiLiveClient {
     this.activeSources = [];
     this.nextPlayTime = 0;
     this.isPlaying = false;
+    this.playbackStartedAt = 0;
+    // Barge-in: skip the tail gate. The user is talking right now, we want
+    // their voice to flow to Gemini immediately rather than gating it.
+    this.playbackEndedAt = 0;
+    this.vadConsecutiveLoudFrames = 0;
     this.config.onAudioStateChange(false);
   }
 
