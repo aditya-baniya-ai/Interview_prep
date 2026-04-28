@@ -169,11 +169,43 @@
 
 .codingTranscript {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 160px; /* never let the videos squeeze the transcript to zero */
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* The shared .transcriptFeed has padding-bottom: 50vh, which is great for the
+   tall behavioral-phase sidebar but breaks the short coding-phase panel:
+   scrollTop = scrollHeight then lands inside the padding and hides every
+   message. Override the padding here so auto-scroll actually shows the latest
+   line, and let the user scroll up freely to read older entries. */
+.codingTranscript .transcriptFeed {
+  padding: 14px 16px 18px 16px;
+  gap: 16px;
+  /* Re-enable the scrollbar in the coding panel so the user has an obvious
+     visual cue that the transcript is scrollable. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.codingTranscript .transcriptFeed::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+.codingTranscript .transcriptFeed::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+
+.codingTranscript .transcriptFeed::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.codingTranscript .transcriptHeader {
+  padding: 12px 16px 10px;
 }
 
 .codingControls {
