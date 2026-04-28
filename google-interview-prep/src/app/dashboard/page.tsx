@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
@@ -8,26 +8,103 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, getDocs } from "@firebase/firestore";
 import { ThemeToggle } from "@/lib/theme";
 import { NavBrand } from "@/components/NavBrand";
+import type { InterviewType } from "@/lib/gemini-live";
 import styles from "./dashboard.module.css";
 
 const LANGUAGES = ["python", "javascript", "java", "cpp"];
-const DURATIONS = [30, 45, 60];
+
+const INTERVIEW_MODES: {
+  id: InterviewType;
+  title: string;
+  icon: string;
+  desc: string;
+  tags: string[];
+  company: string;
+  iconClass: string;
+}[] = [
+  {
+    id: "coding",
+    title: "Coding & DSA",
+    icon: "💻",
+    desc: "Solve a data structures & algorithms problem while explaining your approach to the AI interviewer. Real-time code execution and follow-up questions.",
+    tags: ["Arrays", "Trees", "Graphs", "DP", "Strings"],
+    company: "Used at Google, Amazon, Meta",
+    iconClass: styles.iconCoding,
+  },
+  {
+    id: "behavioral",
+    title: "Behavioral",
+    icon: "🤝",
+    desc: "Practice STAR-framework storytelling with follow-up questions on leadership, teamwork, conflict, and impact. Then optionally transition to a coding round.",
+    tags: ["Leadership", "Teamwork", "Conflict", "Growth"],
+    company: "Used at all FAANG",
+    iconClass: styles.iconBehavioral,
+  },
+  {
+    id: "system-design",
+    title: "System Design",
+    icon: "🏗️",
+    desc: "Whiteboard distributed systems: scalability, consistency, failure modes, and database tradeoffs. Architect real Google-scale products under pressure.",
+    tags: ["Distributed Systems", "CAP Theorem", "Caching", "DBs"],
+    company: "L5+ at Google, Stripe, Uber",
+    iconClass: styles.iconSystemDesign,
+  },
+  {
+    id: "data-analyst",
+    title: "Data Analyst",
+    icon: "📊",
+    desc: "Write complex SQL, define metrics, design A/B tests, and debug data pipelines. Evaluated on correctness, efficiency, and data quality awareness.",
+    tags: ["SQL", "Pandas", "A/B Testing", "Metrics"],
+    company: "Google Analytics, Meta, Airbnb",
+    iconClass: styles.iconDataAnalyst,
+  },
+  {
+    id: "resume-dive",
+    title: "Resume Deep Dive",
+    icon: "📄",
+    desc: "Upload your resume and the AI interviewer will grill you on every vague claim — impact numbers, technical decisions, and ownership questions.",
+    tags: ["Impact Claims", "Tech Stack", "Leadership", "Ownership"],
+    company: "All FAANG loops",
+    iconClass: styles.iconResume,
+  },
+];
+
+const TYPE_DISPLAY: Record<InterviewType, string> = {
+  "coding": "Coding Interview",
+  "behavioral": "Behavioral Interview",
+  "system-design": "System Design",
+  "data-analyst": "Data Analyst",
+  "resume-dive": "Resume Deep Dive",
+};
 
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [language, setLanguage] = useState("python");
-  const [duration, setDuration] = useState(45);
+  const [duration, setDuration] = useState(30);
   const [difficulty, setDifficulty] = useState("Medium");
-  const [interviewType, setInterviewType] = useState<"coding" | "behavioral">(
-    "coding"
-  );
+  const [interviewType, setInterviewType] = useState<InterviewType>("coding");
 
-  const availableDurations = interviewType === "coding" ? [5, 10, 20, 30, 45] : [5];
+  // Resume-dive state
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState<string>("");
+  const [resumeStatus, setResumeStatus] = useState<"idle" | "parsing" | "ready" | "error">("idle");
+  const [resumeError, setResumeError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pastSessions, setPastSessions] = useState<any[]>([]);
 
-  // Fetch past sessions when user loads
+  const availableDurations: number[] =
+    interviewType === "coding"         ? [5, 10, 20, 30, 45] :
+    interviewType === "system-design"  ? [20, 30, 45, 60]    :
+    interviewType === "resume-dive"    ? [15, 20, 30]        :
+                                         [15, 20, 30, 45];
+
+  const showLanguagePicker = interviewType === "coding";
+  const showDifficultyPicker = interviewType === "coding" || interviewType === "data-analyst";
+
+  // Fetch past sessions
   useEffect(() => {
     async function loadSessions() {
       if (user && db) {
@@ -37,11 +114,7 @@ export default function DashboardPage() {
             orderBy("createdAt", "desc")
           );
           const snap = await getDocs(q);
-          const sessions = snap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-          setPastSessions(sessions);
+          setPastSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         } catch (err) {
           console.error("Failed to load sessions:", err);
         }
@@ -50,27 +123,62 @@ export default function DashboardPage() {
     loadSessions();
   }, [user]);
 
-  // Update duration when interview type changes
+  // Reset duration when type changes
   useEffect(() => {
-    setDuration(interviewType === "coding" ? 30 : 5);
+    const defaults: Record<InterviewType, number> = {
+      coding: 30,
+      behavioral: 20,
+      "system-design": 45,
+      "data-analyst": 20,
+      "resume-dive": 20,
+    };
+    setDuration(defaults[interviewType]);
+    // Clear resume state when switching away from resume-dive
+    if (interviewType !== "resume-dive") {
+      setResumeFile(null);
+      setResumeText("");
+      setResumeStatus("idle");
+      setResumeError("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }, [interviewType]);
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setResumeFile(file);
+    setResumeStatus("parsing");
+    setResumeError("");
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${backendUrl}/api/resume/parse`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+        throw new Error(err.detail || "Parse failed");
+      }
+      const data = await res.json();
+      setResumeText(data.text);
+      setResumeStatus("ready");
+    } catch (err) {
+      setResumeStatus("error");
+      setResumeError(err instanceof Error ? err.message : "Failed to parse resume");
+      setResumeText("");
+    }
+  };
 
   if (loading) {
     return (
       <div className={styles.dashboard}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
           <div className="google-dots">
-            <div className="dot"></div>
-            <div className="dot"></div>
-            <div className="dot"></div>
-            <div className="dot"></div>
+            <div className="dot"></div><div className="dot"></div>
+            <div className="dot"></div><div className="dot"></div>
           </div>
         </div>
       </div>
@@ -83,25 +191,31 @@ export default function DashboardPage() {
   }
 
   const handleStartInterview = () => {
+    if (interviewType === "resume-dive" && resumeStatus !== "ready") return;
+
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Store resume text in sessionStorage before navigating
+    if (interviewType === "resume-dive" && resumeText) {
+      sessionStorage.setItem(`resume_${sessionId}`, resumeText);
+    }
+
     const params = new URLSearchParams({
       type: interviewType,
       language,
       duration: duration.toString(),
       difficulty,
+      sid: sessionId,
     });
-    router.push(`/interview?${params.toString()}&sid=${sessionId}`);
+    router.push(`/interview?${params.toString()}`);
   };
 
   const getInitials = (name: string | null) => {
     if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
+
+  const startDisabled = interviewType === "resume-dive" && resumeStatus !== "ready";
 
   return (
     <div className={styles.dashboard}>
@@ -113,20 +227,14 @@ export default function DashboardPage() {
           <div className={styles.userChip}>
             <div className={styles.userAvatar}>
               {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || "User"}
-                  referrerPolicy="no-referrer"
-                />
+                <img src={user.photoURL} alt={user.displayName || "User"} referrerPolicy="no-referrer" />
               ) : (
                 getInitials(user.displayName)
               )}
             </div>
             <span>{user.displayName || "User"}</span>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={signOut}>
-            Sign Out
-          </button>
+          <button className="btn btn-ghost btn-sm" onClick={signOut}>Sign Out</button>
         </div>
       </nav>
 
@@ -137,73 +245,59 @@ export default function DashboardPage() {
             Welcome, {user.displayName?.split(" ")[0] || "there"}
           </h1>
           <p className={styles.dashWelcomeSub}>
-            Ready to practice for your FAANG interview? Choose your session
-            type below.
+            Choose an interview mode below to start your AI-powered practice session.
           </p>
         </div>
 
         {/* ---------- Interview Type Selection ---------- */}
         <div className={styles.startSection}>
-          <h2 className={styles.startSectionTitle}>Choose Interview Type</h2>
+          <h2 className={styles.startSectionTitle}>Choose Interview Mode</h2>
           <div className={styles.interviewTypes}>
-            <div
-              className={`${styles.interviewTypeCard} ${interviewType === "coding" ? styles.interviewTypeCardSelected : ""}`}
-              onClick={() => setInterviewType("coding")}
-              id="type-coding"
-            >
-              <div className={`${styles.interviewTypeIcon} ${styles.iconCoding}`}>
-                💻
-              </div>
-              <h3 className={styles.interviewTypeTitle}>
-                Coding Interview
-              </h3>
-              <p className={styles.interviewTypeDesc}>
-                Solve a DSA problem while explaining your approach to the AI
-                interviewer. Get real-time code compilation, test case
-                execution, and follow-up questions.
-              </p>
-              <div className={styles.interviewTypeTags}>
-                <span className={styles.tag}>Arrays</span>
-                <span className={styles.tag}>Trees</span>
-                <span className={styles.tag}>Graphs</span>
-                <span className={styles.tag}>DP</span>
-                <span className={styles.tag}>Strings</span>
-              </div>
-              <span className={styles.companyPill}>Used at Google, Amazon, Meta</span>
-              <span className={`btn btn-primary btn-sm`}>
-                {interviewType === "coding" ? "✓ Selected" : "Select"}
-              </span>
-            </div>
-
-            <div
-              className={`${styles.interviewTypeCard} ${interviewType === "behavioral" ? styles.interviewTypeCardSelected : ""}`}
-              onClick={() => setInterviewType("behavioral")}
-              id="type-behavioral"
-            >
+            {INTERVIEW_MODES.map((mode) => (
               <div
-                className={`${styles.interviewTypeIcon} ${styles.iconBehavioral}`}
+                key={mode.id}
+                className={`${styles.interviewTypeCard} ${interviewType === mode.id ? styles.interviewTypeCardSelected : ""}`}
+                onClick={() => setInterviewType(mode.id)}
+                id={`type-${mode.id}`}
               >
-                🗣️
+                <div className={`${styles.interviewTypeIcon} ${mode.iconClass}`}>
+                  {mode.icon}
+                </div>
+                <h3 className={styles.interviewTypeTitle}>{mode.title}</h3>
+                <p className={styles.interviewTypeDesc}>{mode.desc}</p>
+                <div className={styles.interviewTypeTags}>
+                  {mode.tags.map((t) => <span key={t} className={styles.tag}>{t}</span>)}
+                </div>
+                <span className={styles.companyPill}>{mode.company}</span>
+
+                {/* Resume uploader — only shown inside the resume-dive card when selected */}
+                {mode.id === "resume-dive" && interviewType === "resume-dive" && (
+                  <div className={styles.resumeUploadRow} onClick={(e) => e.stopPropagation()}>
+                    <label className={styles.resumeUploadLabel}>Upload Your Resume</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.docx"
+                      className={styles.resumeInput}
+                      onChange={handleResumeUpload}
+                    />
+                    {resumeStatus === "parsing" && (
+                      <p className={styles.resumeStatus}>Parsing resume...</p>
+                    )}
+                    {resumeStatus === "ready" && resumeFile && (
+                      <p className={styles.resumeStatus}>✓ {resumeFile.name} ready</p>
+                    )}
+                    {resumeStatus === "error" && (
+                      <p className={styles.resumeError}>⚠ {resumeError}</p>
+                    )}
+                  </div>
+                )}
+
+                <span className={`btn btn-primary btn-sm`} style={{ marginTop: "var(--space-4)" }}>
+                  {interviewType === mode.id ? "✓ Selected" : "Select"}
+                </span>
               </div>
-              <h3 className={styles.interviewTypeTitle}>
-                Behavioral Interview
-              </h3>
-              <p className={styles.interviewTypeDesc}>
-                Practice answering behavioral questions using the STAR
-                framework. The AI asks follow-ups and evaluates your
-                communication and storytelling ability.
-              </p>
-              <div className={styles.interviewTypeTags}>
-                <span className={styles.tag}>Leadership</span>
-                <span className={styles.tag}>Teamwork</span>
-                <span className={styles.tag}>Conflict</span>
-                <span className={styles.tag}>Growth</span>
-              </div>
-              <span className={styles.companyPill}>Used at all FAANG</span>
-              <span className="btn btn-primary btn-sm">
-                {interviewType === "behavioral" ? "✓ Selected" : "Select"}
-              </span>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -212,22 +306,18 @@ export default function DashboardPage() {
           <h2 className={styles.startSectionTitle}>Session Settings</h2>
           <div className={styles.configGrid}>
             <div className={styles.configCard}>
-              <label className={styles.configLabel}>
-                Programming Language
-              </label>
+              <label className={styles.configLabel}>Programming Language</label>
               <select
                 className="select w-full"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
                 id="select-language"
-                disabled={interviewType === "behavioral"}
-                style={{ opacity: interviewType === "behavioral" ? 0.5 : 1 }}
+                disabled={!showLanguagePicker}
+                style={{ opacity: showLanguagePicker ? 1 : 0.4 }}
               >
                 {LANGUAGES.map((lang) => (
-                   <option key={lang} value={lang}>
-                    {lang === "cpp"
-                      ? "C++"
-                      : lang.charAt(0).toUpperCase() + lang.slice(1)}
+                  <option key={lang} value={lang}>
+                    {lang === "cpp" ? "C++" : lang.charAt(0).toUpperCase() + lang.slice(1)}
                   </option>
                 ))}
               </select>
@@ -242,26 +332,24 @@ export default function DashboardPage() {
                 id="select-duration"
               >
                 {availableDurations.map((d) => (
-                  <option key={d} value={d}>
-                    {d} minutes
-                  </option>
+                  <option key={d} value={d}>{d} minutes</option>
                 ))}
               </select>
             </div>
 
             <div className={styles.configCard}>
               <label className={styles.configLabel}>Difficulty</label>
-              <select 
-                className="select w-full" 
+              <select
+                className="select w-full"
                 id="select-difficulty"
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
-                disabled={interviewType === "behavioral"}
-                style={{ opacity: interviewType === "behavioral" ? 0.5 : 1 }}
+                disabled={!showDifficultyPicker}
+                style={{ opacity: showDifficultyPicker ? 1 : 0.4 }}
               >
-                <option value="Easy">Easy (L2)</option>
-                <option value="Medium">Medium (L3 - L4)</option>
-                <option value="Hard">Hard (L5+)</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
               </select>
             </div>
           </div>
@@ -269,10 +357,17 @@ export default function DashboardPage() {
 
         {/* ---------- Start Button ---------- */}
         <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
+          {interviewType === "resume-dive" && resumeStatus !== "ready" && (
+            <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginBottom: "var(--space-3)" }}>
+              Upload your resume above to enable this mode.
+            </p>
+          )}
           <button
             className={styles.startBtn}
             onClick={handleStartInterview}
             id="start-interview-btn"
+            disabled={startDisabled}
+            style={{ opacity: startDisabled ? 0.5 : 1, cursor: startDisabled ? "not-allowed" : "pointer" }}
           >
             Start Interview Session
           </button>
@@ -295,7 +390,7 @@ export default function DashboardPage() {
                 <div key={session.id} className={styles.historyItem}>
                   <div>
                     <h3 style={{ margin: "0 0 4px 0", fontSize: "var(--text-base)", fontWeight: "500", color: "var(--text-primary)" }}>
-                      {session.interviewType === "coding" ? "Coding Interview" : "Behavioral Interview"}
+                      {TYPE_DISPLAY[session.interviewType as InterviewType] ?? session.interviewType}
                     </h3>
                     <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
                       {new Date(session.createdAt).toLocaleDateString()} · {session.durationMinutes} min

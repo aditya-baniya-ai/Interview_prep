@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -135,6 +135,7 @@ class LiveTokenRequest(BaseModel):
     interview_type: str = "coding"
     session_id: Optional[str] = None
     difficulty: Optional[str] = "Medium"
+    resume_text: Optional[str] = None
 
 
 @app.post("/api/live/token")
@@ -164,7 +165,7 @@ async def get_live_token(request: LiveTokenRequest):
             sessions[request.session_id].problem = problem
 
     system_instruction = get_interviewer_system_instruction(
-        request.interview_type, problem
+        request.interview_type, problem, request.resume_text
     )
 
     token_data = create_live_token(request.interview_type)
@@ -484,6 +485,52 @@ Take a deep breath and analyze everything carefully. Base your scores exclusivel
                 "Ask clarifying questions when needed."
             ],
         }
+
+
+# ──────────── Resume Parsing ────────────
+
+@app.post("/api/resume/parse")
+async def parse_resume(file: UploadFile = File(...)):
+    """Extract plain text from an uploaded PDF or DOCX resume.
+
+    Returns at most 8 000 characters so it fits safely inside a Gemini
+    system instruction without burning excess tokens.
+    """
+    import io
+
+    filename = file.filename or ""
+    content = await file.read()
+
+    if filename.lower().endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join(
+                page.extract_text() or "" for page in reader.pages
+            )
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Could not parse PDF: {e}")
+
+    elif filename.lower().endswith(".docx"):
+        try:
+            from docx import Document
+            doc = Document(io.BytesIO(content))
+            text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Could not parse DOCX: {e}")
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Only .pdf and .docx files are supported",
+        )
+
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Could not extract any text from the file")
+
+    logger.info(f"📄 Resume parsed: {len(text)} chars from '{filename}'")
+    return {"text": text[:8000], "char_count": len(text)}
 
 
 # ──────────── WebSocket Handler ────────────

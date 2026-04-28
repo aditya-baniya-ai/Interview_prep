@@ -10,7 +10,7 @@ import {
   TestResult,
   InterviewProblem,
 } from "@/lib/websocket";
-import { GeminiLiveClient } from "@/lib/gemini-live";
+import { GeminiLiveClient, type InterviewType } from "@/lib/gemini-live";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "@firebase/firestore";
 import { NavBrand } from "@/components/NavBrand";
@@ -249,11 +249,16 @@ function InterviewContent() {
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
     
+    const resumeText = typeof window !== "undefined"
+      ? sessionStorage.getItem(`resume_${sessionId}`) ?? undefined
+      : undefined;
+
     const client = new GeminiLiveClient({
       backendUrl,
-      interviewType: interviewType as "coding" | "behavioral",
+      interviewType: interviewType as InterviewType,
       sessionId,
       difficulty,
+      resumeText,
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
         if (!isFinal) {
@@ -668,7 +673,11 @@ function InterviewContent() {
             <NavBrand forceDark />
           </div>
           <span className={styles.interviewType}>
-            {interviewType === "coding" ? "💻 Coding" : "🗣️ Behavioral"}
+            {interviewType === "coding" ? "💻 Coding" :
+             interviewType === "system-design" ? "🏗️ System Design" :
+             interviewType === "data-analyst" ? "📊 Data Analyst" :
+             interviewType === "resume-dive" ? "📄 Resume Deep Dive" :
+             "🤝 Behavioral"}
           </span>
         </div>
 
@@ -698,7 +707,7 @@ function InterviewContent() {
         </div>
 
         <div className={styles.navRight}>
-          {phase === "behavioral" && (
+          {phase === "behavioral" && interviewType === "behavioral" && (
             <button
               className="btn btn-primary btn-sm"
               onClick={handleTransitionToCoding}

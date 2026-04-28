@@ -10,11 +10,19 @@
  * This gives us the lowest possible latency for voice conversations.
  */
 
+export type InterviewType =
+  | "coding"
+  | "behavioral"
+  | "system-design"
+  | "data-analyst"
+  | "resume-dive";
+
 export interface GeminiLiveConfig {
   backendUrl: string;
-  interviewType: "coding" | "behavioral";
+  interviewType: InterviewType;
   sessionId?: string;
   difficulty?: string;
+  resumeText?: string;
   onTranscriptUpdate: (speaker: "user" | "interviewer", text: string, isFinal: boolean) => void;
   onAudioStateChange: (isPlaying: boolean) => void;
   onConnectionChange: (connected: boolean) => void;
@@ -63,6 +71,7 @@ export class GeminiLiveClient {
           interview_type: this.config.interviewType,
           session_id: this.config.sessionId,
           difficulty: this.config.difficulty,
+          resume_text: this.config.resumeText,
         }),
       });
 
