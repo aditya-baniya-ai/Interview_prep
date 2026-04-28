@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
@@ -12,6 +12,19 @@ import styles from "./dashboard.module.css";
 
 const LANGUAGES = ["python", "javascript", "java", "cpp"];
 const DURATIONS = [30, 45, 60];
+const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
+const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
+
+interface PracticeQuestion {
+  id: string;
+  title: string;
+  difficulty: string;
+  company: string;
+  source: string;
+  url: string;
+  topics: string[];
+  acceptance_rate: number;
+}
 
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth();
@@ -26,6 +39,11 @@ export default function DashboardPage() {
   const availableDurations = interviewType === "coding" ? [5, 10, 20, 30, 45] : [5];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pastSessions, setPastSessions] = useState<any[]>([]);
+
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
 
   // Fetch past sessions when user loads
   useEffect(() => {
@@ -54,6 +72,30 @@ export default function DashboardPage() {
   useEffect(() => {
     setDuration(interviewType === "coding" ? 30 : 5);
   }, [interviewType]);
+
+  const fetchQuestions = useCallback(async () => {
+    setQuestionsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedCompany) params.set("company", selectedCompany);
+      if (selectedDifficulty) params.set("difficulty", selectedDifficulty);
+      const res = await fetch(
+        `http://localhost:8000/api/questions?${params.toString()}`
+      );
+      if (res.ok) {
+        const data: PracticeQuestion[] = await res.json();
+        setQuestions(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch questions:", err);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, [selectedCompany, selectedDifficulty]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   if (loading) {
     return (
