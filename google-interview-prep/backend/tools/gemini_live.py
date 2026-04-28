@@ -9,7 +9,7 @@ import os
 import datetime
 from google import genai
 
-from config import GEMINI_API_KEY
+from config import GEMINI_API_KEY, GEMINI_LIVE_MODEL
 
 # Initialize the GenAI client
 client = genai.Client(
@@ -17,8 +17,9 @@ client = genai.Client(
     http_options={"api_version": "v1alpha"},
 )
 
-# The model for Live API sessions
-LIVE_MODEL = "gemini-3.1-flash-live-preview"
+# The model for Live API sessions — driven by the GEMINI_LIVE_MODEL env var
+# (defaults to "gemini-2.0-flash-live-001" in config.py).
+LIVE_MODEL = GEMINI_LIVE_MODEL
 
 
 def get_interviewer_system_instruction(

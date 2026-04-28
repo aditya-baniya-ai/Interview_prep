@@ -610,7 +610,11 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
                 break
 
             if "text" in data:
-                message = json.loads(data["text"])
+                try:
+                    message = json.loads(data["text"])
+                except json.JSONDecodeError:
+                    logger.warning(f"⚠️ Malformed JSON frame from {session_id}, skipping")
+                    continue
                 msg_type = message.get("type")
 
                 if msg_type == "code_snapshot":

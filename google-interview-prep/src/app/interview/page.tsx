@@ -146,6 +146,15 @@ function InterviewContent() {
   // Are we *trying* to keep the recognizer running right now? Toggled by the
   // audioStatus effect; consulted by onend to decide whether to auto-restart.
   const recognitionWantRunningRef = useRef<boolean>(false);
+  // Mirrors isMicActive state so callbacks created once on mount (e.g.
+  // onAudioStateChange inside GeminiLiveClient) always read the current value
+  // without being stale.
+  const isMicActiveRef = useRef<boolean>(true);
+  // Set to true by the countdown interval when the timer naturally reaches
+  // zero. Lets us call handleEndInterview() in a normal effect instead of
+  // inside a React setState updater (where side-effects are forbidden in
+  // concurrent mode and can fire more than once).
+  const timerExpiredRef = useRef<boolean>(false);
 
   useEffect(() => {
     audioStatusRef.current = audioStatus;
@@ -178,13 +187,22 @@ function InterviewContent() {
     }
   }, [audioStatus, isMicActive]);
 
+  // Keep isMicActiveRef in sync so that callbacks created once on mount
+  // (such as onAudioStateChange inside GeminiLiveClient) always see the
+  // current mic state without needing to be recreated on every change.
+  useEffect(() => {
+    isMicActiveRef.current = isMicActive;
+  }, [isMicActive]);
+
   // Main interview timer — paused while the candidate is on break.
   useEffect(() => {
     if (isOnBreak) return; // freeze main timer during a break
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleEndInterview();
+          // Signal that the timer expired — handleEndInterview() will be
+          // called by the dedicated effect below, outside this updater.
+          timerExpiredRef.current = true;
           return 0;
         }
         return prev - 1;
@@ -196,6 +214,18 @@ function InterviewContent() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnBreak]);
+
+  // React to the timer reaching zero. Calling handleEndInterview() here
+  // (in a normal effect) instead of inside the setState updater above avoids
+  // React's restriction against side-effects in functional updates, which can
+  // run more than once in concurrent / Strict Mode.
+  useEffect(() => {
+    if (timeLeft === 0 && timerExpiredRef.current) {
+      timerExpiredRef.current = false;
+      handleEndInterview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft]);
 
   // Break timer — only runs while on break.
   useEffect(() => {
@@ -335,7 +365,7 @@ function InterviewContent() {
         transcriptRef.current = [...transcriptRef.current, entry];
       },
       onAudioStateChange: (isPlaying) => {
-        setAudioStatus(isPlaying ? "speaking" : (isMicActive ? "listening" : "idle"));
+        setAudioStatus(isPlaying ? "speaking" : (isMicActiveRef.current ? "listening" : "idle"));
       },
       onConnectionChange: (connected) => {
         setConnectionStatus(connected ? "connected" : "disconnected");
