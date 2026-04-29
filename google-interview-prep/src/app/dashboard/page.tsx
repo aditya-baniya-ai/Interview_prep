@@ -27,7 +27,9 @@ const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
 const AVAILABLE_PROBLEM_IDS = new Set([
   "two-sum", "valid-parentheses", "merge-intervals", "number-of-islands",
   "lru-cache", "course-schedule", "3sum", "coin-change", "word-break",
-  "trapping-rain-water", "merge-k-sorted-lists",
+  "trapping-rain-water", "merge-k-sorted-lists", "reverse-linked-list",
+  "best-time-to-buy-and-sell-stock", "group-anagrams", "jump-game",
+  "house-robber", "unique-paths", "rotting-oranges",
 ]);
 
 // Mirrors the Firestore document shape from questions/{slug}
