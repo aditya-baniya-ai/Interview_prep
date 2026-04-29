@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, getDocs } from "@firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  where,
+  limit,
+} from "@firebase/firestore";
 import { ThemeToggle } from "@/lib/theme";
 import { NavBrand } from "@/components/NavBrand";
 import styles from "./dashboard.module.css";
@@ -14,9 +21,6 @@ const LANGUAGES = ["python", "javascript", "java", "cpp"];
 const DURATIONS = [30, 45, 60];
 const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
 const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
-
-// Backend URL from env — avoids hardcoding localhost which breaks for other devs
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 // Mirrors the Firestore document shape from questions/{slug}
 interface PracticeQuestion {
@@ -77,21 +81,22 @@ export default function DashboardPage() {
     setDuration(interviewType === "coding" ? 30 : 5);
   }, [interviewType]);
 
-  // Fetch questions from Firestore via backend whenever filters change.
-  // Both filters are optional — omitting both returns all 50 questions (capped at 20).
+  // Query Firestore directly from the client — no backend dependency needed.
+  // The questions collection is public read data seeded by seed_questions.py.
   const fetchQuestions = useCallback(async () => {
+    if (!db) return;
     setQuestionsLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedCompany) params.set("company", selectedCompany);
-      if (selectedDifficulty) params.set("difficulty", selectedDifficulty);
-      const res = await fetch(
-        `${BACKEND_URL}/api/questions?${params.toString()}`
-      );
-      if (res.ok) {
-        const data: PracticeQuestion[] = await res.json();
-        setQuestions(data);
-      }
+      const constraints = [];
+      if (selectedCompany) constraints.push(where("company", "==", selectedCompany));
+      if (selectedDifficulty) constraints.push(where("difficulty", "==", selectedDifficulty));
+      constraints.push(orderBy("acceptance_rate", "desc"));
+      constraints.push(limit(20));
+
+      const q = query(collection(db, "questions"), ...constraints);
+      const snap = await getDocs(q);
+      const results = snap.docs.map((d) => d.data() as PracticeQuestion);
+      setQuestions(results);
     } catch (err) {
       console.error("Failed to fetch questions:", err);
     } finally {
@@ -369,7 +374,22 @@ export default function DashboardPage() {
           ) : (
             <div className={styles.questionCards}>
               {questions.map((q) => (
-                <div key={q.id} className={styles.questionCard}>
+                <div
+                  key={q.id}
+                  className={styles.questionCard}
+                  onClick={() => {
+                    // Launch the interview round with this specific question's difficulty
+                    const sid = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const params = new URLSearchParams({
+                      type: "coding",
+                      language,
+                      duration: duration.toString(),
+                      difficulty: q.difficulty,
+                    });
+                    router.push(`/interview?${params.toString()}&sid=${sid}`);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className={styles.questionLeft}>
                     <h3 className={styles.questionTitle}>{q.title}</h3>
                     <div className={styles.questionTopics}>
@@ -382,19 +402,11 @@ export default function DashboardPage() {
                     <span className={`${styles.diffBadge} ${diffClass(q.difficulty)}`}>
                       {q.difficulty}
                     </span>
-                    <a
-                      href={q.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.extLink}
-                      title="Open on LeetCode"
-                    >
+                    <span className={styles.extLink} title="Start interview">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
+                        <polygon points="5 3 19 12 5 21 5 3" />
                       </svg>
-                    </a>
+                    </span>
                   </div>
                 </div>
               ))}
