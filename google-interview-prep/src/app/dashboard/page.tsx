@@ -95,17 +95,20 @@ export default function DashboardPage() {
     if (!db) return;
     setQuestionsLoading(true);
     try {
+      // Only apply where() filters — no orderBy to avoid composite index requirements.
+      // Sorting is done client-side after filtering against the problem bank.
       const constraints = [];
       if (selectedCompany) constraints.push(where("company", "==", selectedCompany));
       if (selectedDifficulty) constraints.push(where("difficulty", "==", selectedDifficulty));
-      constraints.push(orderBy("acceptance_rate", "desc"));
-      constraints.push(limit(20));
+      constraints.push(limit(50));
 
       const q = query(collection(db, "questions"), ...constraints);
       const snap = await getDocs(q);
       const all = snap.docs.map((d) => d.data() as PracticeQuestion);
       // Filter to only problems that exist in the backend problem bank
-      const results = all.filter((p) => AVAILABLE_PROBLEM_IDS.has(p.id));
+      const results = all
+        .filter((p) => AVAILABLE_PROBLEM_IDS.has(p.id))
+        .sort((a, b) => b.acceptance_rate - a.acceptance_rate);
       setQuestions(results);
     } catch (err) {
       console.error("Failed to fetch questions:", err);
