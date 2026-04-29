@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, getDocs } from "@firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  where,
+  limit,
+} from "@firebase/firestore";
 import { ThemeToggle } from "@/lib/theme";
 import { NavBrand } from "@/components/NavBrand";
 import type { InterviewType } from "@/lib/gemini-live";
@@ -210,6 +217,12 @@ export default function DashboardPage() {
     router.push(`/interview?${params.toString()}`);
   };
 
+  const diffClass = (d: string) => {
+    if (d === "Easy") return styles.diffEasy;
+    if (d === "Medium") return styles.diffMedium;
+    return styles.diffHard;
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return "U";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -371,6 +384,83 @@ export default function DashboardPage() {
           >
             Start Interview Session
           </button>
+        </div>
+
+        {/* ---------- Practice Questions ---------- */}
+        <div className={styles.practiceSection}>
+          <h2 className={styles.startSectionTitle}>Practice Questions</h2>
+          <div className={styles.filterRow}>
+            {COMPANIES.map((c) => (
+              <button
+                key={c}
+                className={`${styles.filterPill} ${selectedCompany === c ? styles.filterPillActive : ""}`}
+                onClick={() => setSelectedCompany(selectedCompany === c ? null : c)}
+                id={`filter-company-${c.toLowerCase()}`}
+              >
+                {c}
+              </button>
+            ))}
+            <div className={styles.filterDivider} />
+            {DIFFICULTY_OPTIONS.map((d) => (
+              <button
+                key={d}
+                className={`${styles.filterPill} ${selectedDifficulty === d ? styles.filterPillActive : ""}`}
+                onClick={() => setSelectedDifficulty(selectedDifficulty === d ? null : d)}
+                id={`filter-diff-${d.toLowerCase()}`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          {questionsLoading ? (
+            <div className={styles.questionsEmpty}>Loading...</div>
+          ) : questions.length === 0 ? (
+            <div className={styles.questionsEmpty}>
+              No questions found. Try adjusting your filters.
+            </div>
+          ) : (
+            <div className={styles.questionCards}>
+              {questions.map((q) => (
+                <div
+                  key={q.id}
+                  className={styles.questionCard}
+                  onClick={() => {
+                    // Launch the interview round with the exact problem the user selected
+                    const sid = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const params = new URLSearchParams({
+                      type: "coding",
+                      language,
+                      duration: duration.toString(),
+                      difficulty: q.difficulty,
+                      problemId: q.id,
+                    });
+                    router.push(`/interview?${params.toString()}&sid=${sid}`);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className={styles.questionLeft}>
+                    <h3 className={styles.questionTitle}>{q.title}</h3>
+                    <div className={styles.questionTopics}>
+                      {q.topics.map((t) => (
+                        <span key={t} className={styles.topicTag}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={styles.questionRight}>
+                    <span className={`${styles.diffBadge} ${diffClass(q.difficulty)}`}>
+                      {q.difficulty}
+                    </span>
+                    <span className={styles.extLink} title="Start interview">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ---------- History ---------- */}
