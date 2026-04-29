@@ -25,6 +25,15 @@ interface TranscriptEntry {
   timestamp: number;
 }
 
+const USER_NOT_UNDERSTOOD_TEXT = "(Not understood by AI. Try speaking english.)";
+
+function isLikelyEnglish(text: string): boolean {
+  const letters = Array.from(text.matchAll(/\p{L}/gu), (m) => m[0]);
+  if (letters.length === 0) return false;
+  const latinLetters = letters.filter((ch) => /[A-Za-z]/.test(ch)).length;
+  return latinLetters / letters.length >= 0.7;
+}
+
 const LANGUAGE_MAP: Record<string, string> = {
   python: "python",
   javascript: "javascript",
@@ -318,6 +327,10 @@ function InterviewContent() {
         }
         const trimmed = text.trim();
         if (!trimmed) return;
+        const finalText =
+          sp === "user" && !isLikelyEnglish(trimmed)
+            ? USER_NOT_UNDERSTOOD_TEXT
+            : trimmed;
 
         // Merge consecutive same-speaker finals into one bubble. Gemini Live
         // sometimes splits one logical utterance into multiple turns — a
@@ -327,14 +340,24 @@ function InterviewContent() {
         setTranscript((prev) => {
           const now = Date.now();
           const last = prev[prev.length - 1];
+          const canMerge =
+            !!last &&
+            last.speaker === sp &&
+            now - last.timestamp < MERGE_WINDOW_MS &&
+            last.text !== USER_NOT_UNDERSTOOD_TEXT &&
+            finalText !== USER_NOT_UNDERSTOOD_TEXT;
           let next: TranscriptEntry[];
-          if (last && last.speaker === sp && now - last.timestamp < MERGE_WINDOW_MS) {
+          if (canMerge) {
             next = [
               ...prev.slice(0, -1),
-              { ...last, text: `${last.text} ${trimmed}`.replace(/\s+/g, " ").trim(), timestamp: now },
+              {
+                ...last,
+                text: `${last.text} ${finalText}`.replace(/\s+/g, " ").trim(),
+                timestamp: now,
+              },
             ];
           } else {
-            next = [...prev, { speaker: sp, text: trimmed, timestamp: now }];
+            next = [...prev, { speaker: sp, text: finalText, timestamp: now }];
           }
           transcriptRef.current = next;
           return next;

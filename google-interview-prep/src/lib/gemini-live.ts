@@ -77,6 +77,10 @@ export class GeminiLiveClient {
   private static readonly VAD_BARGE_IN_THRESHOLD = 0.07;
   private static readonly VAD_MIN_BARGE_IN_FRAMES = 3; // ~768ms sustained voice
   private vadConsecutiveLoudFrames = 0;
+  // Emit a lightweight user-speaking heartbeat at most every ~450ms while
+  // local VAD detects sustained candidate speech.
+  private static readonly USER_SPEECH_SIGNAL_INTERVAL_MS = 450;
+  private lastUserSpeechSignalAt = 0;
 
   // Barge-in grace period: don't let the AI's own audio (bleeding through the
   // speakers into the mic) cancel its first words. Echo cancellation is on,
@@ -214,6 +218,15 @@ export class GeminiLiveClient {
 
         // Audio data from the model
         if (serverContent.modelTurn?.parts) {
+          // As soon as the model starts its next response, commit the
+          // candidate's current utterance. Waiting for turnComplete can delay
+          // the user bubble until after the AI finishes speaking.
+          if (!this.isPlaying && this.userTranscriptBuffer.trim()) {
+            const userText = this.userTranscriptBuffer.trim();
+            this.userTranscriptBuffer = "";
+            this.config.onTranscriptUpdate("user", userText, true);
+          }
+
           // The model has started speaking — cancel any pending greeting
           // nudge so we don't double-trigger.
           this.aiHasSpokenThisSession = true;
@@ -234,11 +247,6 @@ export class GeminiLiveClient {
         // text is committed on turnComplete / interrupted.
         if (serverContent.inputTranscription?.text) {
           const chunk = serverContent.inputTranscription.text;
-          // Discard chunks with non-Latin characters — Gemini hallucinating from noise
-          if (/[^\x00-\x7F]/.test(chunk)) {
-            this.userTranscriptBuffer = "";
-            return;
-          }
           this.userTranscriptBuffer += chunk;
           this.config.onTranscriptUpdate("user", this.userTranscriptBuffer, false);
         }
@@ -266,10 +274,7 @@ export class GeminiLiveClient {
           if (this.userTranscriptBuffer.trim()) {
             const userText = this.userTranscriptBuffer.trim();
             this.userTranscriptBuffer = "";
-            // Only commit if it's clean English text
-            if (!/[^\x00-\x7F]/.test(userText)) {
-              this.config.onTranscriptUpdate("user", userText, true);
-            }
+            this.config.onTranscriptUpdate("user", userText, true);
           }
           // Flush AI's text SECOND
           if (this.aiTranscriptBuffer.trim()) {
@@ -419,6 +424,20 @@ export class GeminiLiveClient {
           // hum, distant chatter, typing) lives below the threshold so it
           // never accumulates here.
           this.vadConsecutiveLoudFrames = 0;
+        }
+
+        // Local speaking heartbeat for the UI's "You..." indicator.
+        // This is independent of Gemini's inputTranscription cadence, which
+        // can be sparse on some turns/devices.
+        if (!isAiTalking && this.vadConsecutiveLoudFrames >= minFrames) {
+          const nowMs = Math.floor(now);
+          if (
+            nowMs - this.lastUserSpeechSignalAt >=
+            GeminiLiveClient.USER_SPEECH_SIGNAL_INTERVAL_MS
+          ) {
+            this.lastUserSpeechSignalAt = nowMs;
+            this.config.onTranscriptUpdate("user", this.userTranscriptBuffer, false);
+          }
         }
 
         // Local barge-in: if we've heard the user *sustainably* (multiple
