@@ -29,7 +29,14 @@ const AVAILABLE_PROBLEM_IDS = new Set([
   "lru-cache", "course-schedule", "3sum", "coin-change", "word-break",
   "trapping-rain-water", "merge-k-sorted-lists", "reverse-linked-list",
   "best-time-to-buy-and-sell-stock", "group-anagrams", "jump-game",
-  "house-robber", "unique-paths", "rotting-oranges",
+  "house-robber", "unique-paths", "rotting-oranges", "spiral-matrix",
+  "set-matrix-zeroes", "find-the-duplicate-number", "maximum-subarray",
+  "maximum-product-subarray", "longest-increasing-subsequence", "edit-distance",
+  "decode-ways", "pascals-triangle", "valid-sudoku", "median-of-two-sorted-arrays",
+  "serialize-and-deserialize-binary-tree", "word-ladder", "meeting-rooms-ii",
+  "min-cost-climbing-stairs", "minimum-window-substring", "subarray-sum-equals-k",
+  "first-missing-positive", "palindrome-partitioning", "wildcard-matching",
+  "regular-expression-matching", "burst-balloons",
 ]);
 
 // Mirrors the Firestore document shape from questions/{slug}
