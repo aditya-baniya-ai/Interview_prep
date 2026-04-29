@@ -22,6 +22,14 @@ const DURATIONS = [30, 45, 60];
 const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
 const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
 
+// Only show questions that have a matching full problem in the backend problem bank.
+// This ensures clicking a question always opens that exact problem in the interview.
+const AVAILABLE_PROBLEM_IDS = new Set([
+  "two-sum", "valid-parentheses", "merge-intervals", "number-of-islands",
+  "lru-cache", "course-schedule", "3sum", "coin-change", "word-break",
+  "trapping-rain-water", "merge-k-sorted-lists",
+]);
+
 // Mirrors the Firestore document shape from questions/{slug}
 interface PracticeQuestion {
   id: string;
@@ -95,7 +103,9 @@ export default function DashboardPage() {
 
       const q = query(collection(db, "questions"), ...constraints);
       const snap = await getDocs(q);
-      const results = snap.docs.map((d) => d.data() as PracticeQuestion);
+      const all = snap.docs.map((d) => d.data() as PracticeQuestion);
+      // Filter to only problems that exist in the backend problem bank
+      const results = all.filter((p) => AVAILABLE_PROBLEM_IDS.has(p.id));
       setQuestions(results);
     } catch (err) {
       console.error("Failed to fetch questions:", err);
