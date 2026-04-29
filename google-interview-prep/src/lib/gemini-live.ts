@@ -228,7 +228,10 @@ export class GeminiLiveClient {
           }
         }
 
-        // Input transcription (what the user said) — accumulate + stream interim
+        // Input transcription (what the user said). The UI doesn't render
+        // interim text, but it DOES use the interim ping as a "user is
+        // currently speaking" signal to drive the typing indicator. Final
+        // text is committed on turnComplete / interrupted.
         if (serverContent.inputTranscription?.text) {
           const chunk = serverContent.inputTranscription.text;
           // Discard chunks with non-Latin characters — Gemini hallucinating from noise
@@ -240,10 +243,11 @@ export class GeminiLiveClient {
           this.config.onTranscriptUpdate("user", this.userTranscriptBuffer, false);
         }
 
-        // Output transcription (what the AI said) — accumulate + stream interim
+        // Output transcription (what the AI said) — accumulate silently;
+        // flushed as one final message on turnComplete / interrupted. The
+        // AI's typing indicator is driven separately by audio playback state.
         if (serverContent.outputTranscription?.text) {
           this.aiTranscriptBuffer += serverContent.outputTranscription.text;
-          this.config.onTranscriptUpdate("interviewer", this.aiTranscriptBuffer, false);
         }
 
         // Handle interruption (user started speaking while AI is talking)

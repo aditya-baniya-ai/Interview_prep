@@ -78,8 +78,16 @@ function InterviewContent() {
   const [phase, setPhase] = useState<"behavioral" | "transitioning" | "coding">(
     interviewType === "coding" ? "coding" : "behavioral"
   );
-  const [userInterim, setUserInterim] = useState<string>("");
-  const [aiInterim, setAiInterim] = useState<string>("");
+  // We deliberately do NOT render in-flight (interim) transcription text.
+  // The chat only shows finalized messages, dropped after each speaker
+  // finishes their utterance — same shape as a real chat thread. See
+  // onTranscriptUpdate and the same-speaker merge logic below.
+  //
+  // We DO surface a lightweight "Sarah…" / "You…" typing indicator while
+  // the respective speaker is talking. AI activity is driven by audioStatus;
+  // user activity is driven by the cadence of Gemini's interim
+  // inputTranscription pings (see onTranscriptUpdate + the debounce timer).
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
@@ -131,54 +139,17 @@ function InterviewContent() {
   const preBreakCamRef = useRef<boolean>(false);
   const breakStartedAtRef = useRef<number | null>(null);
 
-  // Mirror of audioStatus, readable from any callback closure (Web Speech
-  // recognition handler, Gemini onTranscriptUpdate) without having to rebuild
-  // those closures on every state change.
+  // Mirror of audioStatus, readable from any callback closure without
+  // having to rebuild that closure on every state change.
   const audioStatusRef = useRef<"idle" | "listening" | "speaking">("idle");
-  // Web Speech API recognizer + lifecycle bookkeeping. The recognizer buffers
-  // audio internally and emits final results after its end-of-utterance
-  // detector fires — meaning AI bleed-through that the recognizer "heard"
-  // during AI playback would land in the "You" bubble the moment the AI
-  // stops talking. To prevent that we abort() the recognizer for the entire
-  // duration of AI speech (which discards its buffer) and start() it fresh
-  // once the AI is silent.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const recognitionRunningRef = useRef<boolean>(false);
-  // Are we *trying* to keep the recognizer running right now? Toggled by the
-  // audioStatus effect; consulted by onend to decide whether to auto-restart.
-  const recognitionWantRunningRef = useRef<boolean>(false);
 
   useEffect(() => {
     audioStatusRef.current = audioStatus;
-    // Drive the recognizer based on AI speaking state.
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-    if (audioStatus === "speaking") {
-      // Abort, NOT stop — abort() discards any buffered audio so it can't
-      // be transcribed once the AI finishes. stop() would emit a final
-      // result for everything captured so far (including AI bleed).
-      recognitionWantRunningRef.current = false;
-      if (recognitionRunningRef.current) {
-        try {
-          recognition.abort();
-        } catch {
-          // already stopping/stopped
-        }
-      }
-    } else if (isMicActive) {
-      // AI silent and mic on — make sure the recognizer is running.
-      recognitionWantRunningRef.current = true;
-      if (!recognitionRunningRef.current) {
-        try {
-          recognition.start();
-        } catch {
-          // start() throws if it's already running or in a transitional
-          // state; onend will pick up the slack and restart if needed.
-        }
-      }
-    }
-  }, [audioStatus, isMicActive]);
+  }, [audioStatus]);
+
+  // Debounce timer that clears the "You…" typing indicator if no new
+  // inputTranscription chunks have arrived for USER_SPEAKING_TIMEOUT_MS.
+  const userSpeakingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Main interview timer — paused while the candidate is on break.
   useEffect(() => {
@@ -236,7 +207,7 @@ function InterviewContent() {
     if (distanceFromBottom <= STICK_THRESHOLD_PX) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [transcript, userInterim, aiInterim]);
+  }, [transcript, audioStatus, isUserSpeaking]);
 
   // Initialize webcam
   const startWebcam = useCallback(async () => {
@@ -316,25 +287,58 @@ function InterviewContent() {
       resumeText,
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
-        // Defensive gate: while the AI is speaking, ignore any user-side
-        // transcription updates (interim OR final). Even with the audio
-        // gate in gemini-live.ts, in-flight inputTranscription messages
-        // for frames sent moments earlier can still arrive after AI
-        // playback has begun — this stops those late echoes from being
-        // attributed to the candidate.
-        if (sp === "user" && audioStatusRef.current === "speaking") {
-          return;
-        }
+
+        // Interim updates: don't render text, but use them as a heartbeat
+        // for the "You…" typing indicator (only the user side — the AI
+        // indicator is driven by audioStatus, which is more reliable).
         if (!isFinal) {
-          if (sp === "user") setUserInterim(text);
-          else setAiInterim(text);
+          if (sp === "user") {
+            setIsUserSpeaking(true);
+            if (userSpeakingTimerRef.current) clearTimeout(userSpeakingTimerRef.current);
+            // If no chunk arrives for ~1.4s assume the user paused/stopped.
+            userSpeakingTimerRef.current = setTimeout(() => {
+              setIsUserSpeaking(false);
+              userSpeakingTimerRef.current = null;
+            }, 1400);
+          }
           return;
         }
-        if (sp === "user") setUserInterim("");
-        else setAiInterim("");
-        const entry = { speaker: sp, text, timestamp: Date.now() };
-        setTranscript((prev) => [...prev, entry]);
-        transcriptRef.current = [...transcriptRef.current, entry];
+
+        // Finalized message — commit it to the transcript. Note: we do NOT
+        // gate user finals on audioStatus here. Gemini emits the user
+        // final BEFORE its onAudioStateChange(false) on turnComplete, so
+        // audioStatus could still read "speaking" at this exact moment;
+        // gating would silently drop a legit message.
+        if (sp === "user") {
+          setIsUserSpeaking(false);
+          if (userSpeakingTimerRef.current) {
+            clearTimeout(userSpeakingTimerRef.current);
+            userSpeakingTimerRef.current = null;
+          }
+        }
+        const trimmed = text.trim();
+        if (!trimmed) return;
+
+        // Merge consecutive same-speaker finals into one bubble. Gemini Live
+        // sometimes splits one logical utterance into multiple turns — a
+        // brief pause, a false-positive barge-in, or its own pacing — and
+        // we don't want each fragment to spawn a new bubble.
+        const MERGE_WINDOW_MS = 8000;
+        setTranscript((prev) => {
+          const now = Date.now();
+          const last = prev[prev.length - 1];
+          let next: TranscriptEntry[];
+          if (last && last.speaker === sp && now - last.timestamp < MERGE_WINDOW_MS) {
+            next = [
+              ...prev.slice(0, -1),
+              { ...last, text: `${last.text} ${trimmed}`.replace(/\s+/g, " ").trim(), timestamp: now },
+            ];
+          } else {
+            next = [...prev, { speaker: sp, text: trimmed, timestamp: now }];
+          }
+          transcriptRef.current = next;
+          return next;
+        });
       },
       onAudioStateChange: (isPlaying) => {
         setAudioStatus(isPlaying ? "speaking" : (isMicActive ? "listening" : "idle"));
@@ -371,97 +375,10 @@ function InterviewContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Local Web Speech API for instant visual transcription (interim only).
-  // The recognizer's lifecycle is driven by two effects:
-  //   - This one creates / tears down the recognizer when the mic toggles.
-  //   - The audioStatus effect above abort()s and start()s it across AI
-  //     playback boundaries so AI bleed-through never gets transcribed.
-  useEffect(() => {
-    if (!isMicActive || typeof window === "undefined") return;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      // Defensive: even with start/abort lifecycle control, an interim
-      // result might race into this handler right at the AI playback
-      // boundary. Suppress it.
-      if (audioStatusRef.current === "speaking") {
-        return;
-      }
-      let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (!event.results[i].isFinal) {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      if (interimTranscript.trim() !== "") {
-        setUserInterim(interimTranscript);
-      }
-    };
-
-    recognition.onstart = () => {
-      recognitionRunningRef.current = true;
-    };
-
-    // The recognizer can end for several reasons: we explicitly aborted it,
-    // the user fell silent (continuous=true normally keeps it alive but
-    // some browsers still time out), or an error occurred. If we still
-    // want it running and the AI isn't currently speaking, restart it.
-    recognition.onend = () => {
-      recognitionRunningRef.current = false;
-      if (
-        recognitionWantRunningRef.current &&
-        audioStatusRef.current !== "speaking" &&
-        recognitionRef.current === recognition
-      ) {
-        try {
-          recognition.start();
-        } catch {
-          // Browser is in a transitional state; the next render of the
-          // audioStatus effect will retry.
-        }
-      }
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onerror = (event: any) => {
-      // 'aborted' is expected (we triggered it ourselves). Log the rest.
-      if (event?.error && event.error !== "aborted") {
-        console.warn("SpeechRecognition error:", event.error);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    // Don't start the recognizer immediately if the AI is already speaking
-    // when the mic flips on (e.g., on initial connect). The audioStatus
-    // effect will start it as soon as the AI is silent.
-    if (audioStatusRef.current !== "speaking") {
-      recognitionWantRunningRef.current = true;
-      try {
-        recognition.start();
-      } catch {
-        // Ignore if recognition is already started
-      }
-    }
-
-    return () => {
-      recognitionWantRunningRef.current = false;
-      recognitionRef.current = null;
-      try {
-        recognition.abort();
-      } catch {
-        // already stopped
-      }
-    };
-  }, [isMicActive]);
+  // (Removed) The local Web Speech API recognizer used to drive a "live"
+  // bubble that updated as the candidate spoke. We now only show finalized
+  // messages, so that recognizer + its lifecycle bookkeeping are gone.
+  // Gemini Live's own inputTranscription is the sole source of user text.
 
   // Code snapshot debounce — send code context to AI every 10s
   useEffect(() => {
@@ -887,7 +804,7 @@ function InterviewContent() {
               Transcript
             </div>
             <div className={styles.transcriptFeed} ref={chatContainerRef}>
-              {transcript.length === 0 && !userInterim && !aiInterim && (
+              {transcript.length === 0 && (
                 <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
               )}
               {transcript.map((entry, i) => (
@@ -900,18 +817,27 @@ function InterviewContent() {
                   </p>
                 </div>
               ))}
-              {userInterim && (
-                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
-                  <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
-                  <p className={`${styles.transcriptText} ${styles.textUser}`}>{userInterim}<span className={styles.transcriptCursor} /></p>
-                </div>
-              )}
-              {aiInterim && (
-                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+              {/* Live typing indicator: AI takes priority if both flags happen
+                  to be true at the same moment (e.g., echo). */}
+              {audioStatus === "speaking" ? (
+                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
                   <span className={`${styles.transcriptSpeaker} ${styles.speakerAi}`}>Sarah</span>
-                  <p className={`${styles.transcriptText} ${styles.textAi}`}>{aiInterim}<span className={styles.transcriptCursor} /></p>
+                  <p className={`${styles.transcriptText} ${styles.textAi} ${styles.typingText}`}>
+                    <span className={styles.typingDots}>
+                      <span /><span /><span />
+                    </span>
+                  </p>
                 </div>
-              )}
+              ) : isUserSpeaking ? (
+                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
+                  <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
+                  <p className={`${styles.transcriptText} ${styles.textUser} ${styles.typingText}`}>
+                    <span className={styles.typingDots}>
+                      <span /><span /><span />
+                    </span>
+                  </p>
+                </div>
+              ) : null}
             </div>
           </aside>
 
@@ -1028,7 +954,7 @@ function InterviewContent() {
                 Transcript
               </div>
               <div className={styles.transcriptFeed} ref={chatContainerRef}>
-                {transcript.length === 0 && !userInterim && !aiInterim && (
+                {transcript.length === 0 && (
                   <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
                 )}
                 {transcript.map((entry, i) => (
@@ -1041,18 +967,25 @@ function InterviewContent() {
                     </p>
                   </div>
                 ))}
-                {userInterim && (
-                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
-                    <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
-                    <p className={`${styles.transcriptText} ${styles.textUser}`}>{userInterim}<span className={styles.transcriptCursor} /></p>
-                  </div>
-                )}
-                {aiInterim && (
-                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+                {audioStatus === "speaking" ? (
+                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
                     <span className={`${styles.transcriptSpeaker} ${styles.speakerAi}`}>Sarah</span>
-                    <p className={`${styles.transcriptText} ${styles.textAi}`}>{aiInterim}<span className={styles.transcriptCursor} /></p>
+                    <p className={`${styles.transcriptText} ${styles.textAi} ${styles.typingText}`}>
+                      <span className={styles.typingDots}>
+                        <span /><span /><span />
+                      </span>
+                    </p>
                   </div>
-                )}
+                ) : isUserSpeaking ? (
+                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
+                    <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
+                    <p className={`${styles.transcriptText} ${styles.textUser} ${styles.typingText}`}>
+                      <span className={styles.typingDots}>
+                        <span /><span /><span />
+                      </span>
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
 
