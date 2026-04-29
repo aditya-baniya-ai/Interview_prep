@@ -378,13 +378,14 @@ export default function DashboardPage() {
                   key={q.id}
                   className={styles.questionCard}
                   onClick={() => {
-                    // Launch the interview round with this specific question's difficulty
+                    // Launch the interview round with the exact problem the user selected
                     const sid = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                     const params = new URLSearchParams({
                       type: "coding",
                       language,
                       duration: duration.toString(),
                       difficulty: q.difficulty,
+                      problemId: q.id,
                     });
                     router.push(`/interview?${params.toString()}&sid=${sid}`);
                   }}

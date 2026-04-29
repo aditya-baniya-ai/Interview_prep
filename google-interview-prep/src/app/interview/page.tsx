@@ -58,6 +58,8 @@ function InterviewContent() {
   const durationMinutes = parseInt(searchParams.get("duration") || "45");
   const sessionId = searchParams.get("sid") || "demo";
   const difficulty = searchParams.get("difficulty") || "Medium";
+  // When coming from the practice questions grid, the exact problem slug is passed
+  const problemId = searchParams.get("problemId");
 
   // State
   const [code, setCode] = useState(DEFAULT_CODE[language] || DEFAULT_CODE.python);
@@ -393,6 +395,19 @@ function InterviewContent() {
   const fetchProblem = useCallback(async () => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+      // If a specific problem was selected from the practice grid, load it directly
+      if (problemId) {
+        const res = await fetch(`${backendUrl}/api/problems/${problemId}`);
+        if (res.ok) {
+          const full = await res.json();
+          setProblem(full);
+          if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
+          return;
+        }
+      }
+
+      // Fallback: pick a random problem matching the selected difficulty
       const listRes = await fetch(`${backendUrl}/api/problems`);
       if (!listRes.ok) return;
       const list = await listRes.json();
@@ -408,7 +423,7 @@ function InterviewContent() {
       console.error("Failed to fetch problem:", e);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, selectedLanguage]);
+  }, [difficulty, selectedLanguage, problemId]);
 
   // Fetch problem immediately when starting in coding mode
   useEffect(() => {
