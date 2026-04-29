@@ -15,6 +15,10 @@ const DURATIONS = [30, 45, 60];
 const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
 const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
 
+// Backend URL from env — avoids hardcoding localhost which breaks for other devs
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+// Mirrors the Firestore document shape from questions/{slug}
 interface PracticeQuestion {
   id: string;
   title: string;
@@ -73,6 +77,8 @@ export default function DashboardPage() {
     setDuration(interviewType === "coding" ? 30 : 5);
   }, [interviewType]);
 
+  // Fetch questions from Firestore via backend whenever filters change.
+  // Both filters are optional — omitting both returns all 50 questions (capped at 20).
   const fetchQuestions = useCallback(async () => {
     setQuestionsLoading(true);
     try {
@@ -80,7 +86,7 @@ export default function DashboardPage() {
       if (selectedCompany) params.set("company", selectedCompany);
       if (selectedDifficulty) params.set("difficulty", selectedDifficulty);
       const res = await fetch(
-        `http://localhost:8000/api/questions?${params.toString()}`
+        `${BACKEND_URL}/api/questions?${params.toString()}`
       );
       if (res.ok) {
         const data: PracticeQuestion[] = await res.json();
@@ -93,6 +99,7 @@ export default function DashboardPage() {
     }
   }, [selectedCompany, selectedDifficulty]);
 
+  // Re-fetch on every filter change — initial load fetches all questions
   useEffect(() => {
     fetchQuestions();
   }, [fetchQuestions]);

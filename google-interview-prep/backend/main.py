@@ -230,10 +230,16 @@ async def run_code(request: RunCodeRequest):
 
 @app.get("/api/questions")
 async def list_questions(company: Optional[str] = None, difficulty: Optional[str] = None):
-    """Query practice questions from Firestore with optional filters."""
+    """Query practice questions from Firestore with optional company/difficulty filters.
+
+    Returns up to 20 results sorted by acceptance_rate descending.
+    Both params are optional — omitting both returns all questions.
+    """
     import firebase_admin
     from firebase_admin import credentials as fb_credentials, firestore as fb_firestore
 
+    # Lazy-init Firebase Admin on first call to avoid import-time side effects
+    # and conflicts if other modules also initialize firebase_admin.
     if not firebase_admin._apps:
         sa_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
         fb_cred = fb_credentials.Certificate(sa_path)
@@ -249,6 +255,9 @@ async def list_questions(company: Optional[str] = None, difficulty: Optional[str
 
     docs = ref.limit(20).stream()
     results = [doc.to_dict() for doc in docs]
+
+    # Sort in Python rather than Firestore to avoid requiring a composite index
+    # for every possible filter combination.
     results.sort(key=lambda q: q.get("acceptance_rate", 0), reverse=True)
     return results
 
