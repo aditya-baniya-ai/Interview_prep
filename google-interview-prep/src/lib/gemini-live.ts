@@ -471,8 +471,18 @@ export class GeminiLiveClient {
           return;
         }
 
+        // iOS Safari (and some Androids) silently ignore the sampleRate
+        // hints in getUserMedia / AudioContext, returning audio at the
+        // device's native rate (typically 48000 Hz). Gemini Live expects
+        // 16 kHz exactly, so we resample whenever the actual rate differs.
+        const actualRate = this.audioContext!.sampleRate;
+        const resampled =
+          actualRate === 16000
+            ? inputData
+            : this.downsampleTo16k(inputData, actualRate);
+
         // Convert Float32 to Int16 PCM
-        const pcmData = this.float32ToInt16(inputData);
+        const pcmData = this.float32ToInt16(resampled);
 
         // Encode to base64
         const base64Data = this.arrayBufferToBase64(pcmData.buffer as ArrayBuffer);
@@ -712,6 +722,34 @@ export class GeminiLiveClient {
       int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
     return int16Array;
+  }
+
+  /**
+   * Linear-interpolation downsampler from `inputRate` Hz to 16000 Hz.
+   *
+   * iOS Safari (and a few Android setups) ignore the sampleRate hint we
+   * pass to getUserMedia/AudioContext and deliver audio at the hardware's
+   * native rate (usually 48000 Hz). Gemini Live's API strictly requires
+   * 16 kHz mono PCM — sending 48 kHz audio mislabeled as 16 kHz makes the
+   * server reject the stream with a generic "Operation not supported" 1008.
+   *
+   * Linear interpolation isn't audiophile-grade but it's plenty for speech,
+   * adds zero dependencies, and runs comfortably on a phone CPU.
+   */
+  private downsampleTo16k(input: Float32Array, inputRate: number): Float32Array {
+    if (inputRate === 16000) return input;
+    const ratio = inputRate / 16000;
+    const outputLength = Math.floor(input.length / ratio);
+    const output = new Float32Array(outputLength);
+    for (let i = 0; i < outputLength; i++) {
+      const srcIdx = i * ratio;
+      const idx = Math.floor(srcIdx);
+      const frac = srcIdx - idx;
+      const a = input[idx] || 0;
+      const b = input[idx + 1] || a;
+      output[i] = a * (1 - frac) + b * frac;
+    }
+    return output;
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
