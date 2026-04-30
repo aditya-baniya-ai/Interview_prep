@@ -205,17 +205,13 @@ function InterviewContent() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Auto-scroll chat — but ONLY when the user is already near the bottom of
-  // the feed. If they've scrolled up to read earlier messages we leave the
-  // scroll position alone so a new message doesn't yank them back down.
+  // Auto-scroll chat — always pin to the bottom as new transcript content
+  // arrives so the latest line is visible without the user having to scroll.
   useEffect(() => {
     const el = chatContainerRef.current;
     if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const STICK_THRESHOLD_PX = 80;
-    if (distanceFromBottom <= STICK_THRESHOLD_PX) {
-      el.scrollTop = el.scrollHeight;
-    }
+    // Use smooth scrolling for a natural feel while the conversation flows.
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [transcript, audioStatus, isUserSpeaking]);
 
   // Initialize webcam
@@ -276,6 +272,27 @@ function InterviewContent() {
       }
     };
   }, [startWebcam]);
+
+  // Re-attach the active media stream to the <video> element when the phase
+  // changes. The behavioral and coding phases each render their own <video>
+  // node, so after a phase switch videoRef points to a freshly mounted
+  // element whose srcObject hasn't been set — without this the camera feed
+  // appears blank in the coding round even though the stream is still live.
+  useEffect(() => {
+    if (
+      phase !== "transitioning" &&
+      videoRef.current &&
+      streamRef.current &&
+      videoRef.current.srcObject !== streamRef.current
+    ) {
+      videoRef.current.srcObject = streamRef.current;
+      // Some browsers pause the new <video> until play() is called explicitly.
+      videoRef.current.play().catch(() => {
+        /* autoplay can be rejected; the user gesture from clicking the
+           transition button has already satisfied the policy in practice. */
+      });
+    }
+  }, [phase, isWebcamActive]);
 
   // Connect to Gemini Live API on mount
   useEffect(() => {
