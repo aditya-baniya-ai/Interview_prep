@@ -256,34 +256,33 @@
 
 /* ---------- Start Button ---------- */
 .startBtn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  width: 100%;
-  max-width: 560px;
-  height: 68px;
-  padding: 0 var(--space-12);
+  gap: var(--space-2);
+  margin: 0 auto;
+  height: 44px;
+  padding: 0 var(--space-6);
   background: var(--accent-blue);
   color: #FFFFFF;
   border: none;
-  border-radius: 34px;
+  border-radius: 22px;
   font-family: var(--font-sans);
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: 0.02em;
   cursor: pointer;
   transition: all 0.25s ease;
-  box-shadow: 0 6px 24px rgba(26, 115, 232, 0.4);
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.35);
 }
 .startBtn:hover {
   background: #1557B0;
-  box-shadow: 0 10px 32px rgba(26, 115, 232, 0.55);
-  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(26, 115, 232, 0.5);
+  transform: translateY(-1px);
 }
 .startBtn:active {
   transform: translateY(0);
-  box-shadow: 0 3px 10px rgba(26, 115, 232, 0.3);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
 }
 .startBtn:disabled {
   opacity: 0.5;
