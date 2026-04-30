@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
+  signInAnonymously,
   getRedirectResult,
   signOut as firebaseSignOut,
 } from "@firebase/auth";
@@ -32,6 +33,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -39,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signInWithGoogle: async () => {},
+  signInAsGuest: async () => {},
   signOut: async () => {},
 });
 
@@ -85,6 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInAsGuest = async () => {
+    if (!auth) {
+      throw new Error("Firebase not initialized");
+    }
+    try {
+      await signInAnonymously(auth);
+    } catch (error) {
+      console.error("Guest sign-in error:", error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     if (!auth) return;
     try {
@@ -96,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInAsGuest, signOut }}>
       {children}
     </AuthContext.Provider>
   );

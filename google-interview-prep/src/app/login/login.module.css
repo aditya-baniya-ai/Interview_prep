@@ -110,6 +110,36 @@
   background: var(--border);
 }
 
+.guestBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.guestBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+.guestBtn:active { transform: scale(0.98); }
+
+.guestBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .loginFooter {
   margin-top: var(--space-8);
   font-size: var(--text-xs);

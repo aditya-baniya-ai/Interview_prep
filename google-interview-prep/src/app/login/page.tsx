@@ -7,9 +7,10 @@ import { NavBrand } from "@/components/NavBrand";
 import styles from "./login.module.css";
 
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle, signInAsGuest } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isGuestSigningIn, setIsGuestSigningIn] = useState(false);
   const router = useRouter();
 
   // Redirect if already logged in
@@ -94,6 +95,31 @@ export default function LoginPage() {
         )}
 
         <div className={styles.loginDivider}>or</div>
+
+        <button
+          className={styles.guestBtn}
+          onClick={async () => {
+            setError(null);
+            setIsGuestSigningIn(true);
+            try {
+              await signInAsGuest();
+              router.push("/dashboard");
+            } catch (err: unknown) {
+              const errorMessage =
+                err instanceof Error ? err.message : "Failed to continue as guest. Please try again.";
+              setError(errorMessage);
+            } finally {
+              setIsGuestSigningIn(false);
+            }
+          }}
+          disabled={isSigningIn || isGuestSigningIn || loading}
+        >
+          {isGuestSigningIn ? (
+            <span className={styles.loadingSpinner}></span>
+          ) : (
+            "Continue as Guest"
+          )}
+        </button>
 
         <p className={styles.loginFooter}>
           By signing in, you agree to our Terms of Service and Privacy Policy.

@@ -150,7 +150,7 @@ export default function DashboardPage() {
   // Fetch past sessions
   useEffect(() => {
     async function loadSessions() {
-      if (user && db) {
+      if (user && !user.isAnonymous && db) {
         try {
           const q = query(
             collection(db, "users", user.uid, "sessions"),
@@ -311,10 +311,10 @@ export default function DashboardPage() {
               {user.photoURL ? (
                 <img src={user.photoURL} alt={user.displayName || "User"} referrerPolicy="no-referrer" />
               ) : (
-                getInitials(user.displayName)
+                user.isAnonymous ? "?" : getInitials(user.displayName)
               )}
             </div>
-            <span>{user.displayName || "User"}</span>
+            <span>{user.isAnonymous ? "Guest" : (user.displayName || "User")}</span>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={signOut}>Sign Out</button>
         </div>
@@ -324,7 +324,7 @@ export default function DashboardPage() {
       <main className={styles.dashContent}>
         <div className={styles.dashWelcome}>
           <h1 className={styles.dashWelcomeTitle}>
-            Welcome, {user.displayName?.split(" ")[0] || "there"}
+            Welcome, {user.isAnonymous ? "Guest" : (user.displayName?.split(" ")[0] || "there")}
           </h1>
           <p className={styles.dashWelcomeSub}>
             Choose an interview mode below to start your AI-powered practice session.
