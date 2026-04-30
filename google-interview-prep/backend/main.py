@@ -247,9 +247,19 @@ async def list_questions(company: Optional[str] = None, difficulty: Optional[str
     # Lazy-init Firebase Admin on first call to avoid import-time side effects
     # and conflicts if other modules also initialize firebase_admin.
     if not firebase_admin._apps:
-        sa_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
-        fb_cred = fb_credentials.Certificate(sa_path)
-        firebase_admin.initialize_app(fb_cred, {"projectId": "interview-prep-cb612"})
+        project_id = os.getenv("FIREBASE_PROJECT_ID", "interview-prep-cb612")
+        sa_path = os.getenv(
+            "FIREBASE_SERVICE_ACCOUNT_PATH",
+            os.path.join(os.path.dirname(__file__), "serviceAccountKey.json"),
+        )
+        if os.path.exists(sa_path):
+            # Local dev: explicit service account JSON
+            fb_cred = fb_credentials.Certificate(sa_path)
+            firebase_admin.initialize_app(fb_cred, {"projectId": project_id})
+        else:
+            # Cloud Run / GCP: use Application Default Credentials
+            # (the runtime service account auto-provides creds)
+            firebase_admin.initialize_app(options={"projectId": project_id})
 
     fs = fb_firestore.client()
     ref = fs.collection("questions")

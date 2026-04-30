@@ -19,12 +19,21 @@ def _load_from_firestore() -> list[dict]:
         from firebase_admin import credentials, firestore as fs
 
         service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "")
-        if not service_account_path or not os.path.exists(service_account_path):
-            return []
+        project_id = os.getenv("FIREBASE_PROJECT_ID", "")
 
         if not firebase_admin._apps:
-            cred = credentials.Certificate(service_account_path)
-            firebase_admin.initialize_app(cred)
+            if service_account_path and os.path.exists(service_account_path):
+                cred = credentials.Certificate(service_account_path)
+                firebase_admin.initialize_app(
+                    cred,
+                    {"projectId": project_id} if project_id else None,
+                )
+            elif project_id:
+                # Cloud Run / GCP: use Application Default Credentials
+                firebase_admin.initialize_app(options={"projectId": project_id})
+            else:
+                # No creds and no project id — skip Firestore, fall back to local bank
+                return []
 
         db = fs.client()
         docs = db.collection("problems").stream()
