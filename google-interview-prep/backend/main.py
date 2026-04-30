@@ -104,6 +104,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    # Also accept any *.vercel.app subdomain so new immutable preview URLs
+    # don't require a CORS env var update on every deploy.
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

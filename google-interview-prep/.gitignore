@@ -48,3 +48,8 @@ backend/venv/
 backend/__pycache__/
 **/__pycache__/
 *.pyc
+
+# secrets — never commit these
+serviceAccountKey.json
+**/serviceAccountKey.json
+*.serviceAccount*.json

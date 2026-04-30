@@ -6,7 +6,7 @@ load_dotenv()
 # Gemini API
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_LIVE_MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-2.0-flash-live-001")
+GEMINI_LIVE_MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-3.1-flash-live-preview")
 
 # Judge0
 JUDGE0_API_URL = os.getenv("JUDGE0_API_URL", "http://localhost:2358")

@@ -82,7 +82,7 @@ gcloud run deploy interview-prep-backend \
   --cpu 1 \
   --min-instances 0 \
   --max-instances 10 \
-  --set-env-vars "FIREBASE_PROJECT_ID=interview-prep-cb612,GEMINI_API_KEY=YOUR_GEMINI_KEY_HERE,CORS_ORIGINS=https://YOUR-VERCEL-DOMAIN.vercel.app,JUDGE0_API_URL=https://judge0-ce.p.rapidapi.com,JUDGE0_API_KEY=YOUR_JUDGE0_KEY"
+  --set-env-vars "FIREBASE_PROJECT_ID=interview-prep-cb612,GEMINI_API_KEY=YOUR_GEMINI_KEY_HERE,CORS_ORIGINS=https://YOUR-VERCEL-DOMAIN.vercel.app
 ```
 
 Replace:
@@ -91,6 +91,7 @@ Replace:
 - `YOUR_JUDGE0_KEY` if you're using RapidAPI Judge0 (or remove those two vars and Judge0 features will degrade gracefully)
 
 **Save the URL Cloud Run prints** — looks like `https://interview-prep-backend-xxxxx-uc.a.run.app`. You'll need it for the frontend.
+**https://interview-prep-backend-36076875979.us-central1.run.app**
 
 ### 1d. Grant Firestore access to the Cloud Run service account
 
