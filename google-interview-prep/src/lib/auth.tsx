@@ -11,9 +11,22 @@ import {
   User,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
 } from "@firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
+
+// Mobile browsers (especially iOS Safari) don't reliably support
+// signInWithPopup — popups get blocked, COOP closes them early, etc.
+// Detect once at module load and use signInWithRedirect for those.
+function isMobileBrowser(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+  const ua = navigator.userAgent || "";
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+}
 
 interface AuthContextType {
   user: User | null;
@@ -39,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Handle the redirect result on page load (mobile sign-in returns here).
+    // Errors are non-fatal — onAuthStateChanged is the source of truth.
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect sign-in error:", error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
@@ -52,7 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Firebase not initialized");
     }
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (isMobileBrowser()) {
+        // Mobile: full-page redirect to Google, then back to our app.
+        // The result is picked up by getRedirectResult() above on mount.
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        // Desktop: popup keeps the user on our page.
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error) {
       console.error("Sign in error:", error);
       throw error;
