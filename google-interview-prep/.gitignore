@@ -53,3 +53,4 @@ backend/__pycache__/
 serviceAccountKey.json
 **/serviceAccountKey.json
 *.serviceAccount*.json
+.DS_Store
