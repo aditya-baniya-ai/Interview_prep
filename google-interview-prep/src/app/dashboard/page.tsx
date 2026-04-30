@@ -449,9 +449,8 @@ export default function DashboardPage() {
             onClick={handleStartInterview}
             id="start-interview-btn"
             disabled={startDisabled}
-            style={{ opacity: startDisabled ? 0.5 : 1, cursor: startDisabled ? "not-allowed" : "pointer" }}
           >
-            Start Interview Session
+            Start Interview Session →
           </button>
         </div>
 
@@ -544,7 +543,7 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            <div className={styles.historyList}>
               {pastSessions.map((session) => (
                 <div key={session.id} className={styles.historyItem}>
                   <div>
