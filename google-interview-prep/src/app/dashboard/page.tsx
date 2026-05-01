@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useState, useEffect, useCallback } from "react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -22,8 +20,6 @@ import styles from "./dashboard.module.css";
 
 const LANGUAGES = ["python", "javascript", "java", "cpp"];
 const DURATIONS = [30, 45, 60];
-const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
-const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
 const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
 const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
 
@@ -164,12 +160,6 @@ export default function DashboardPage() {
   const showLanguagePicker = interviewType === "coding";
   const showDifficultyPicker = interviewType === "coding" || interviewType === "data-analyst";
 
-  // Fetch past sessions
-  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
-  const [questionsLoading, setQuestionsLoading] = useState(false);
-
   // Fetch past sessions when user loads
   useEffect(() => {
     async function loadSessions() {
@@ -270,34 +260,6 @@ export default function DashboardPage() {
       setResumeText("");
     }
   };
-
-  // Query Firestore directly from the client — no backend dependency needed.
-  // The questions collection is public read data seeded by seed_questions.py.
-  const fetchQuestions = useCallback(async () => {
-    if (!db) return;
-    setQuestionsLoading(true);
-    try {
-      const constraints = [];
-      if (selectedCompany) constraints.push(where("company", "==", selectedCompany));
-      if (selectedDifficulty) constraints.push(where("difficulty", "==", selectedDifficulty));
-      constraints.push(orderBy("acceptance_rate", "desc"));
-      constraints.push(limit(20));
-
-      const q = query(collection(db, "questions"), ...constraints);
-      const snap = await getDocs(q);
-      const results = snap.docs.map((d) => d.data() as PracticeQuestion);
-      setQuestions(results);
-    } catch (err) {
-      console.error("Failed to fetch questions:", err);
-    } finally {
-      setQuestionsLoading(false);
-    }
-  }, [selectedCompany, selectedDifficulty]);
-
-  // Re-fetch on every filter change — initial load fetches all questions
-  useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
 
   if (loading) {
     return (
