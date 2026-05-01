@@ -25,11 +25,6 @@ interface TranscriptEntry {
   timestamp: number;
 }
 
-interface CoachMessage {
-  advice: string;
-  type: "tip" | "warning" | "encouragement";
-  ts: string;
-}
 
 const USER_NOT_UNDERSTOOD_TEXT = "(Not understood by AI. Try speaking english.)";
 
@@ -108,12 +103,6 @@ function InterviewContent() {
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [isRunningCode, setIsRunningCode] = useState(false);
   const [isAvatarMouthOpen, setIsAvatarMouthOpen] = useState(false);
-
-  // Whisper Coach
-  const [coachOpen, setCoachOpen] = useState(false);
-  const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
-  const [coachPolling, setCoachPolling] = useState(false);
-  const coachIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Break + penalty tracking
   const [showBreakModal, setShowBreakModal] = useState(false);
@@ -724,46 +713,6 @@ function InterviewContent() {
     setCode(DEFAULT_CODE[newLang] || DEFAULT_CODE.python);
   };
 
-  // Whisper Coach polling — fires every 20 s when panel is open
-  useEffect(() => {
-    if (!coachOpen) {
-      if (coachIntervalRef.current) clearInterval(coachIntervalRef.current);
-      setCoachPolling(false);
-      return;
-    }
-    const poll = async () => {
-      setCoachPolling(true);
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        const res = await fetch(`${backendUrl}/api/coach/advice`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            interview_type: interviewType,
-            transcript: transcriptRef.current.slice(-12),
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const msg: CoachMessage = {
-            advice: data.advice,
-            type: data.type as CoachMessage["type"],
-            ts: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          };
-          setCoachMessages((prev) => [msg, ...prev].slice(0, 8));
-        }
-      } catch {
-        // backend may not be running — silent fail
-      } finally {
-        setCoachPolling(false);
-      }
-    };
-    poll();
-    coachIntervalRef.current = setInterval(poll, 20000);
-    return () => { if (coachIntervalRef.current) clearInterval(coachIntervalRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coachOpen, interviewType]);
-
   const loadingSteps = [
     "Uploading secure transcript...",
     "Gemini 2.5 analyzing code architecture...",
@@ -1207,45 +1156,6 @@ function InterviewContent() {
             </p>
           </div>
         </div>
-      )}
-
-      {/* ---------- Whisper Coach ---------- */}
-      {!isGeneratingFeedback && !isOnBreak && (
-        <>
-          {coachOpen && (
-            <div className={styles.coachPanel}>
-              <div className={styles.coachHeader}>
-                <span className={styles.coachHeaderTitle}>
-                  <span className={coachPolling ? styles.coachDotLive : styles.coachDotIdle} />
-                  Whisper Coach
-                </span>
-                <button className={styles.coachClose} onClick={() => setCoachOpen(false)} suppressHydrationWarning>✕</button>
-              </div>
-              <div className={styles.coachMessages}>
-                {coachMessages.length === 0 && (
-                  <p className={styles.coachEmpty}>
-                    {coachPolling ? "Analyzing transcript…" : "Waiting for conversation to start…"}
-                  </p>
-                )}
-                {coachMessages.map((m, i) => (
-                  <div key={i} className={`${styles.coachMessage} ${
-                    m.type === "warning" ? styles.coachMessageWarning
-                    : m.type === "encouragement" ? styles.coachMessageEncouragement
-                    : styles.coachMessageTip
-                  }`}>
-                    {m.type === "tip" ? "💡" : m.type === "warning" ? "⚠️" : "✅"} {m.advice}
-                    <div className={styles.coachMessageTime}>{m.ts}</div>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.coachFooter}>Silent — only you can see this · refreshes every 20s</div>
-            </div>
-          )}
-          <button className={styles.coachToggle} onClick={() => setCoachOpen((v) => !v)} suppressHydrationWarning>
-            <span className={coachMessages.length > 0 && !coachOpen ? styles.coachDotLive : styles.coachDotIdle} />
-            {coachOpen ? "Hide Coach" : "Whisper Coach"}
-          </button>
-        </>
       )}
 
       {/* ---------- End Interview Modal ---------- */}
