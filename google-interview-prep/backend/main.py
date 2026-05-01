@@ -555,14 +555,21 @@ async def parse_resume(file: UploadFile = File(...)):
     content = await file.read()
 
     if filename.lower().endswith(".pdf"):
+        text = ""
         try:
             from pypdf import PdfReader
             reader = PdfReader(io.BytesIO(content))
-            text = "\n".join(
-                page.extract_text() or "" for page in reader.pages
-            )
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Could not parse PDF: {e}")
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception:
+            pass
+
+        # Fall back to pdfminer when pypdf gets no text (common with some PDF generators)
+        if not text.strip():
+            try:
+                from pdfminer.high_level import extract_text as pdfminer_extract
+                text = pdfminer_extract(io.BytesIO(content)) or ""
+            except Exception as e:
+                raise HTTPException(status_code=422, detail=f"Could not parse PDF: {e}")
 
     elif filename.lower().endswith(".docx"):
         try:
