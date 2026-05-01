@@ -45,9 +45,47 @@ export class GeminiLiveClient {
   // Transcript accumulation buffers
   private userTranscriptBuffer = "";
   private aiTranscriptBuffer = "";
+  // Silence detection — nudges Sarah if no turn completes within the threshold
+  private silenceNudgeTimer: ReturnType<typeof setTimeout> | null = null;
+  private hasOpenedConversation = false;
+
+  // Silence before a check-in: 22 s for coding (user may be typing), 14 s for behavioral
+  private get silenceThresholdMs(): number {
+    return this.config.interviewType === "coding" ? 22000 : 14000;
+  }
 
   constructor(config: GeminiLiveConfig) {
     this.config = config;
+  }
+
+  // ──────────── Silence detection ────────────
+
+  /**
+   * Reset the silence countdown.  Call this after every completed turn
+   * (user or AI) so the timer only fires when there is genuine dead air.
+   */
+  private scheduleSilenceNudge(): void {
+    if (this.silenceNudgeTimer) clearTimeout(this.silenceNudgeTimer);
+    this.silenceNudgeTimer = setTimeout(() => {
+      // Only nudge when the mic is live, connected, and Sarah is not already speaking
+      if (!this.isConnected || !this.isMicActive || this.isPlaying) {
+        this.scheduleSilenceNudge(); // retry shortly
+        return;
+      }
+      const nudge =
+        this.config.interviewType === "coding"
+          ? "[SYSTEM] The candidate has been silent — they may be coding or thinking deeply. As Sarah, briefly fill the pause naturally: e.g. 'Take your time, I can see you working through it' or ask a light check-in question. One sentence only. Do NOT reveal the solution."
+          : "[SYSTEM] The candidate has gone quiet. As Sarah, gently re-engage: a warm filler like 'Take your time' or a soft prompt like 'What's coming to mind?'. One sentence only.";
+      this.sendText(nudge);
+      this.scheduleSilenceNudge(); // re-arm for the next silence window
+    }, this.silenceThresholdMs);
+  }
+
+  private clearSilenceNudge(): void {
+    if (this.silenceNudgeTimer) {
+      clearTimeout(this.silenceNudgeTimer);
+      this.silenceNudgeTimer = null;
+    }
   }
 
   /**
@@ -153,10 +191,10 @@ export class GeminiLiveClient {
         this.isConnected = true;
         this.config.onConnectionChange(true);
 
-        // Initialize playback audio context
+        // Create the playback context eagerly so it's ready when audio arrives.
+        // It may start in 'suspended' state (browser autoplay policy) — we
+        // call resume() before the first audio chunk in playAudioChunk().
         this.playbackContext = new AudioContext({ sampleRate: 24000 });
-        // The AI will auto-greet based on the system instruction
-        // once microphone audio starts flowing
         return;
       }
 
@@ -218,6 +256,9 @@ export class GeminiLiveClient {
             this.aiTranscriptBuffer = "";
           }
           this.config.onAudioStateChange(false);
+          // Restart the silence countdown after every completed turn so Sarah
+          // checks in if the candidate goes quiet for too long.
+          this.scheduleSilenceNudge();
         }
       }
     } catch (error) {
@@ -305,6 +346,27 @@ export class GeminiLiveClient {
       this.scriptProcessor.connect(this.audioContext.destination);
       this.isMicActive = true;
 
+      // Resume the playback context — works here because startMicrophone is
+      // sometimes triggered directly from a user-gesture (mic toggle button).
+      if (this.playbackContext?.state === "suspended") {
+        this.playbackContext.resume().catch(() => {});
+      }
+
+      // On the very first mic start, send a silent system cue so Sarah
+      // delivers her opening greeting immediately rather than waiting for
+      // the user to speak first.
+      if (!this.hasOpenedConversation) {
+        this.hasOpenedConversation = true;
+        setTimeout(() => {
+          if (this.isConnected && this.isMicActive) {
+            this.sendText(
+              "[INTERVIEW_START] The candidate has just joined and their mic is live. As Sarah, warmly greet them now and ask them to briefly introduce themselves. Start speaking immediately."
+            );
+            this.scheduleSilenceNudge();
+          }
+        }, 600);
+      }
+
       console.log("🎤 Microphone streaming started");
     } catch (error) {
       console.error("Microphone error:", error);
@@ -317,6 +379,7 @@ export class GeminiLiveClient {
    */
   stopMicrophone(): void {
     this.isMicActive = false;
+    this.clearSilenceNudge();
 
     if (this.scriptProcessor) {
       this.scriptProcessor.disconnect();
@@ -388,6 +451,15 @@ export class GeminiLiveClient {
    */
   private playAudioChunk(base64Data: string): void {
     if (!this.playbackContext) return;
+
+    // Browser autoplay policy may have left the context suspended (no user
+    // gesture at creation time).  Resume it before scheduling audio so the
+    // first response from Sarah actually plays.  Reset the schedule clock so
+    // chunks don't pile up at t=0 after a late resume.
+    if (this.playbackContext.state === "suspended") {
+      this.playbackContext.resume().catch(() => {});
+      this.nextPlayTime = 0;
+    }
 
     try {
       // Decode base64 to raw bytes
@@ -462,6 +534,7 @@ export class GeminiLiveClient {
    * Disconnect from Gemini Live API
    */
   disconnect(): void {
+    this.clearSilenceNudge();
     this.stopMicrophone();
     this.stopPlayback();
 
