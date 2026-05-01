@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
@@ -23,6 +24,37 @@ const LANGUAGES = ["python", "javascript", "java", "cpp"];
 const DURATIONS = [30, 45, 60];
 const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
 const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
+const COMPANIES = ["Google", "Amazon", "Meta", "Apple", "Netflix"];
+const DIFFICULTY_OPTIONS = ["Easy", "Medium", "Hard"];
+
+// Only show questions that have a matching full problem in the backend problem bank.
+// This ensures clicking a question always opens that exact problem in the interview.
+const AVAILABLE_PROBLEM_IDS = new Set([
+  "two-sum", "valid-parentheses", "merge-intervals", "number-of-islands",
+  "lru-cache", "course-schedule", "3sum", "coin-change", "word-break",
+  "trapping-rain-water", "merge-k-sorted-lists", "reverse-linked-list",
+  "best-time-to-buy-and-sell-stock", "group-anagrams", "jump-game",
+  "house-robber", "unique-paths", "rotting-oranges", "spiral-matrix",
+  "set-matrix-zeroes", "find-the-duplicate-number", "maximum-subarray",
+  "maximum-product-subarray", "longest-increasing-subsequence", "edit-distance",
+  "decode-ways", "pascals-triangle", "valid-sudoku", "median-of-two-sorted-arrays",
+  "serialize-and-deserialize-binary-tree", "word-ladder", "meeting-rooms-ii",
+  "min-cost-climbing-stairs", "minimum-window-substring", "subarray-sum-equals-k",
+  "first-missing-positive", "palindrome-partitioning", "wildcard-matching",
+  "regular-expression-matching", "burst-balloons",
+]);
+
+// Mirrors the Firestore document shape from questions/{slug}
+interface PracticeQuestion {
+  id: string;
+  title: string;
+  difficulty: string;
+  company: string;
+  source: string;
+  url: string;
+  topics: string[];
+  acceptance_rate: number;
+}
 
 const INTERVIEW_MODES: {
   id: InterviewType;
@@ -118,6 +150,11 @@ export default function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pastSessions, setPastSessions] = useState<any[]>([]);
 
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+
   const availableDurations: number[] =
     interviewType === "coding"         ? [5, 10, 20, 30, 45] :
     interviewType === "system-design"  ? [20, 30, 45, 60]    :
@@ -136,7 +173,7 @@ export default function DashboardPage() {
   // Fetch past sessions when user loads
   useEffect(() => {
     async function loadSessions() {
-      if (user && db) {
+      if (user && !user.isAnonymous && db) {
         try {
           const q = query(
             collection(db, "users", user.uid, "sessions"),
@@ -151,6 +188,39 @@ export default function DashboardPage() {
     }
     loadSessions();
   }, [user]);
+
+  // Query Firestore directly from the client — no backend dependency needed.
+  // The questions collection is public read data seeded by seed_questions.py.
+  const fetchQuestions = useCallback(async () => {
+    if (!db) return;
+    setQuestionsLoading(true);
+    try {
+      // Only apply where() filters — no orderBy to avoid composite index requirements.
+      // Sorting is done client-side after filtering against the problem bank.
+      const constraints = [];
+      if (selectedCompany) constraints.push(where("company", "==", selectedCompany));
+      if (selectedDifficulty) constraints.push(where("difficulty", "==", selectedDifficulty));
+      constraints.push(limit(50));
+
+      const q = query(collection(db, "questions"), ...constraints);
+      const snap = await getDocs(q);
+      const all = snap.docs.map((d) => d.data() as PracticeQuestion);
+      // Filter to only problems that exist in the backend problem bank
+      const results = all
+        .filter((p) => AVAILABLE_PROBLEM_IDS.has(p.id))
+        .sort((a, b) => b.acceptance_rate - a.acceptance_rate);
+      setQuestions(results);
+    } catch (err) {
+      console.error("Failed to fetch questions:", err);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, [selectedCompany, selectedDifficulty]);
+
+  // Re-fetch on every filter change — initial load fetches all questions
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   // Reset duration when type changes
   useEffect(() => {
@@ -292,10 +362,10 @@ export default function DashboardPage() {
               {user.photoURL ? (
                 <img src={user.photoURL} alt={user.displayName || "User"} referrerPolicy="no-referrer" />
               ) : (
-                getInitials(user.displayName)
+                user.isAnonymous ? "?" : getInitials(user.displayName)
               )}
             </div>
-            <span>{user.displayName || "User"}</span>
+            <span>{user.isAnonymous ? "Guest" : (user.displayName || "User")}</span>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={signOut}>Sign Out</button>
         </div>
@@ -305,7 +375,7 @@ export default function DashboardPage() {
       <main className={styles.dashContent}>
         <div className={styles.dashWelcome}>
           <h1 className={styles.dashWelcomeTitle}>
-            Welcome, {user.displayName?.split(" ")[0] || "there"}
+            Welcome, {user.isAnonymous ? "Guest" : (user.displayName?.split(" ")[0] || "there")}
           </h1>
           <p className={styles.dashWelcomeSub}>
             Choose an interview mode below to start your AI-powered practice session.
@@ -430,9 +500,8 @@ export default function DashboardPage() {
             onClick={handleStartInterview}
             id="start-interview-btn"
             disabled={startDisabled}
-            style={{ opacity: startDisabled ? 0.5 : 1, cursor: startDisabled ? "not-allowed" : "pointer" }}
           >
-            Start Interview Session
+            Start Interview Session →
           </button>
         </div>
 
@@ -476,13 +545,14 @@ export default function DashboardPage() {
                   key={q.id}
                   className={styles.questionCard}
                   onClick={() => {
-                    // Launch the interview round with this specific question's difficulty
+                    // Launch the interview round with the exact problem the user selected
                     const sid = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                     const params = new URLSearchParams({
                       type: "coding",
                       language,
                       duration: duration.toString(),
                       difficulty: q.difficulty,
+                      problemId: q.id,
                     });
                     router.push(`/interview?${params.toString()}&sid=${sid}`);
                   }}
@@ -524,7 +594,7 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            <div className={styles.historyList}>
               {pastSessions.map((session) => (
                 <div key={session.id} className={styles.historyItem}>
                   <div>

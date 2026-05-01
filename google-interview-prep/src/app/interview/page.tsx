@@ -25,6 +25,15 @@ interface TranscriptEntry {
   timestamp: number;
 }
 
+const USER_NOT_UNDERSTOOD_TEXT = "(Not understood by AI. Try speaking english.)";
+
+function isLikelyEnglish(text: string): boolean {
+  const letters = Array.from(text.matchAll(/\p{L}/gu), (m) => m[0]);
+  if (letters.length === 0) return false;
+  const latinLetters = letters.filter((ch) => /[A-Za-z]/.test(ch)).length;
+  return latinLetters / letters.length >= 0.7;
+}
+
 const LANGUAGE_MAP: Record<string, string> = {
   python: "python",
   javascript: "javascript",
@@ -40,11 +49,10 @@ const LANGUAGE_DISPLAY: Record<string, string> = {
 };
 
 const DEFAULT_CODE: Record<string, string> = {
-  python: '# Write your solution here\n\ndef solution():\n    pass\n',
-  javascript:
-    "// Write your solution here\n\nfunction solution() {\n  \n}\n",
-  java: '// Write your solution here\n\npublic class Solution {\n    public static void main(String[] args) {\n        \n    }\n}\n',
-  cpp: '// Write your solution here\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n',
+  python: 'class Solution():\n    pass\n',
+  javascript: 'class Solution {}\n',
+  java: 'class Solution {}\n',
+  cpp: 'class Solution {};\n',
 };
 
 function InterviewContent() {
@@ -58,6 +66,8 @@ function InterviewContent() {
   const durationMinutes = parseInt(searchParams.get("duration") || "45");
   const sessionId = searchParams.get("sid") || "demo";
   const difficulty = searchParams.get("difficulty") || "Medium";
+  // When coming from the practice questions grid, the exact problem slug is passed
+  const problemId = searchParams.get("problemId");
 
   // State
   const [code, setCode] = useState(DEFAULT_CODE[language] || DEFAULT_CODE.python);
@@ -77,8 +87,16 @@ function InterviewContent() {
   const [phase, setPhase] = useState<"behavioral" | "transitioning" | "coding">(
     interviewType === "coding" ? "coding" : "behavioral"
   );
-  const [userInterim, setUserInterim] = useState<string>("");
-  const [aiInterim, setAiInterim] = useState<string>("");
+  // We deliberately do NOT render in-flight (interim) transcription text.
+  // The chat only shows finalized messages, dropped after each speaker
+  // finishes their utterance — same shape as a real chat thread. See
+  // onTranscriptUpdate and the same-speaker merge logic below.
+  //
+  // We DO surface a lightweight "Sarah…" / "You…" typing indicator while
+  // the respective speaker is talking. AI activity is driven by audioStatus;
+  // user activity is driven by the cadence of Gemini's interim
+  // inputTranscription pings (see onTranscriptUpdate + the debounce timer).
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
   const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
@@ -130,6 +148,18 @@ function InterviewContent() {
   const preBreakCamRef = useRef<boolean>(false);
   const breakStartedAtRef = useRef<number | null>(null);
 
+  // Mirror of audioStatus, readable from any callback closure without
+  // having to rebuild that closure on every state change.
+  const audioStatusRef = useRef<"idle" | "listening" | "speaking">("idle");
+
+  useEffect(() => {
+    audioStatusRef.current = audioStatus;
+  }, [audioStatus]);
+
+  // Debounce timer that clears the "You…" typing indicator if no new
+  // inputTranscription chunks have arrived for USER_SPEAKING_TIMEOUT_MS.
+  const userSpeakingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Main interview timer — paused while the candidate is on break.
   useEffect(() => {
     if (isOnBreak) return; // freeze main timer during a break
@@ -175,13 +205,14 @@ function InterviewContent() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Auto-scroll chat
+  // Auto-scroll chat — always pin to the bottom as new transcript content
+  // arrives so the latest line is visible without the user having to scroll.
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
-    }
-  }, [transcript, userInterim, aiInterim]);
+    const el = chatContainerRef.current;
+    if (!el) return;
+    // Use smooth scrolling for a natural feel while the conversation flows.
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [transcript, audioStatus, isUserSpeaking]);
 
   // Initialize webcam
   const startWebcam = useCallback(async () => {
@@ -242,6 +273,27 @@ function InterviewContent() {
     };
   }, [startWebcam]);
 
+  // Re-attach the active media stream to the <video> element when the phase
+  // changes. The behavioral and coding phases each render their own <video>
+  // node, so after a phase switch videoRef points to a freshly mounted
+  // element whose srcObject hasn't been set — without this the camera feed
+  // appears blank in the coding round even though the stream is still live.
+  useEffect(() => {
+    if (
+      phase !== "transitioning" &&
+      videoRef.current &&
+      streamRef.current &&
+      videoRef.current.srcObject !== streamRef.current
+    ) {
+      videoRef.current.srcObject = streamRef.current;
+      // Some browsers pause the new <video> until play() is called explicitly.
+      videoRef.current.play().catch(() => {
+        /* autoplay can be rejected; the user gesture from clicking the
+           transition button has already satisfied the policy in practice. */
+      });
+    }
+  }, [phase, isWebcamActive]);
+
   // Connect to Gemini Live API on mount
   useEffect(() => {
     // Guard against double-mount (React StrictMode / HMR)
@@ -261,16 +313,72 @@ function InterviewContent() {
       resumeText,
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
+
+        // Interim updates: don't render text, but use them as a heartbeat
+        // for the "You…" typing indicator (only the user side — the AI
+        // indicator is driven by audioStatus, which is more reliable).
         if (!isFinal) {
-          if (sp === "user") setUserInterim(text);
-          else setAiInterim(text);
+          if (sp === "user") {
+            setIsUserSpeaking(true);
+            if (userSpeakingTimerRef.current) clearTimeout(userSpeakingTimerRef.current);
+            // If no chunk arrives for ~1.4s assume the user paused/stopped.
+            userSpeakingTimerRef.current = setTimeout(() => {
+              setIsUserSpeaking(false);
+              userSpeakingTimerRef.current = null;
+            }, 1400);
+          }
           return;
         }
-        if (sp === "user") setUserInterim("");
-        else setAiInterim("");
-        const entry = { speaker: sp, text, timestamp: Date.now() };
-        setTranscript((prev) => [...prev, entry]);
-        transcriptRef.current = [...transcriptRef.current, entry];
+
+        // Finalized message — commit it to the transcript. Note: we do NOT
+        // gate user finals on audioStatus here. Gemini emits the user
+        // final BEFORE its onAudioStateChange(false) on turnComplete, so
+        // audioStatus could still read "speaking" at this exact moment;
+        // gating would silently drop a legit message.
+        if (sp === "user") {
+          setIsUserSpeaking(false);
+          if (userSpeakingTimerRef.current) {
+            clearTimeout(userSpeakingTimerRef.current);
+            userSpeakingTimerRef.current = null;
+          }
+        }
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const finalText =
+          sp === "user" && !isLikelyEnglish(trimmed)
+            ? USER_NOT_UNDERSTOOD_TEXT
+            : trimmed;
+
+        // Merge consecutive same-speaker finals into one bubble. Gemini Live
+        // sometimes splits one logical utterance into multiple turns — a
+        // brief pause, a false-positive barge-in, or its own pacing — and
+        // we don't want each fragment to spawn a new bubble.
+        const MERGE_WINDOW_MS = 8000;
+        setTranscript((prev) => {
+          const now = Date.now();
+          const last = prev[prev.length - 1];
+          const canMerge =
+            !!last &&
+            last.speaker === sp &&
+            now - last.timestamp < MERGE_WINDOW_MS &&
+            last.text !== USER_NOT_UNDERSTOOD_TEXT &&
+            finalText !== USER_NOT_UNDERSTOOD_TEXT;
+          let next: TranscriptEntry[];
+          if (canMerge) {
+            next = [
+              ...prev.slice(0, -1),
+              {
+                ...last,
+                text: `${last.text} ${finalText}`.replace(/\s+/g, " ").trim(),
+                timestamp: now,
+              },
+            ];
+          } else {
+            next = [...prev, { speaker: sp, text: finalText, timestamp: now }];
+          }
+          transcriptRef.current = next;
+          return next;
+        });
       },
       onAudioStateChange: (isPlaying) => {
         setAudioStatus(isPlaying ? "speaking" : (isMicActive ? "listening" : "idle"));
@@ -307,41 +415,10 @@ function InterviewContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Local Web Speech API for instant visual transcription (interim only)
-  useEffect(() => {
-    if (!isMicActive || typeof window === "undefined") return;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (!event.results[i].isFinal) {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      if (interimTranscript.trim() !== "") {
-        setUserInterim(interimTranscript);
-      }
-    };
-
-    try {
-      recognition.start();
-    } catch {
-      // Ignore if recognition is already started
-    }
-
-    return () => {
-      recognition.stop();
-    };
-  }, [isMicActive]);
+  // (Removed) The local Web Speech API recognizer used to drive a "live"
+  // bubble that updated as the candidate spoke. We now only show finalized
+  // messages, so that recognizer + its lifecycle bookkeeping are gone.
+  // Gemini Live's own inputTranscription is the sole source of user text.
 
   // Code snapshot debounce — send code context to AI every 10s
   useEffect(() => {
@@ -398,6 +475,19 @@ function InterviewContent() {
   const fetchProblem = useCallback(async () => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+      // If a specific problem was selected from the practice grid, load it directly
+      if (problemId) {
+        const res = await fetch(`${backendUrl}/api/problems/${problemId}`);
+        if (res.ok) {
+          const full = await res.json();
+          setProblem(full);
+          if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
+          return;
+        }
+      }
+
+      // Fallback: pick a random problem matching the selected difficulty
       const listRes = await fetch(`${backendUrl}/api/problems`);
       if (!listRes.ok) return;
       const list = await listRes.json();
@@ -413,7 +503,7 @@ function InterviewContent() {
       console.error("Failed to fetch problem:", e);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, selectedLanguage]);
+  }, [difficulty, selectedLanguage, problemId]);
 
   // Fetch problem immediately when starting in coding mode
   useEffect(() => {
@@ -754,7 +844,7 @@ function InterviewContent() {
               Transcript
             </div>
             <div className={styles.transcriptFeed} ref={chatContainerRef}>
-              {transcript.length === 0 && !userInterim && !aiInterim && (
+              {transcript.length === 0 && (
                 <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
               )}
               {transcript.map((entry, i) => (
@@ -767,18 +857,27 @@ function InterviewContent() {
                   </p>
                 </div>
               ))}
-              {userInterim && (
-                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
-                  <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
-                  <p className={`${styles.transcriptText} ${styles.textUser}`}>{userInterim}<span className={styles.transcriptCursor} /></p>
-                </div>
-              )}
-              {aiInterim && (
-                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+              {/* Live typing indicator: AI takes priority if both flags happen
+                  to be true at the same moment (e.g., echo). */}
+              {audioStatus === "speaking" ? (
+                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
                   <span className={`${styles.transcriptSpeaker} ${styles.speakerAi}`}>Sarah</span>
-                  <p className={`${styles.transcriptText} ${styles.textAi}`}>{aiInterim}<span className={styles.transcriptCursor} /></p>
+                  <p className={`${styles.transcriptText} ${styles.textAi} ${styles.typingText}`}>
+                    <span className={styles.typingDots}>
+                      <span /><span /><span />
+                    </span>
+                  </p>
                 </div>
-              )}
+              ) : isUserSpeaking ? (
+                <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
+                  <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
+                  <p className={`${styles.transcriptText} ${styles.textUser} ${styles.typingText}`}>
+                    <span className={styles.typingDots}>
+                      <span /><span /><span />
+                    </span>
+                  </p>
+                </div>
+              ) : null}
             </div>
           </aside>
 
@@ -895,7 +994,7 @@ function InterviewContent() {
                 Transcript
               </div>
               <div className={styles.transcriptFeed} ref={chatContainerRef}>
-                {transcript.length === 0 && !userInterim && !aiInterim && (
+                {transcript.length === 0 && (
                   <p className={styles.transcriptEmpty}>Transcript will appear here as you speak...</p>
                 )}
                 {transcript.map((entry, i) => (
@@ -908,18 +1007,25 @@ function InterviewContent() {
                     </p>
                   </div>
                 ))}
-                {userInterim && (
-                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
-                    <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
-                    <p className={`${styles.transcriptText} ${styles.textUser}`}>{userInterim}<span className={styles.transcriptCursor} /></p>
-                  </div>
-                )}
-                {aiInterim && (
-                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryLive}`}>
+                {audioStatus === "speaking" ? (
+                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
                     <span className={`${styles.transcriptSpeaker} ${styles.speakerAi}`}>Sarah</span>
-                    <p className={`${styles.transcriptText} ${styles.textAi}`}>{aiInterim}<span className={styles.transcriptCursor} /></p>
+                    <p className={`${styles.transcriptText} ${styles.textAi} ${styles.typingText}`}>
+                      <span className={styles.typingDots}>
+                        <span /><span /><span />
+                      </span>
+                    </p>
                   </div>
-                )}
+                ) : isUserSpeaking ? (
+                  <div className={`${styles.transcriptEntry} ${styles.transcriptEntryTyping}`}>
+                    <span className={`${styles.transcriptSpeaker} ${styles.speakerUser}`}>You</span>
+                    <p className={`${styles.transcriptText} ${styles.textUser} ${styles.typingText}`}>
+                      <span className={styles.typingDots}>
+                        <span /><span /><span />
+                      </span>
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -954,12 +1060,6 @@ function InterviewContent() {
 
           {/* Right: IDE + problem */}
           <div className={styles.rightPanel}>
-            {problem && (
-              <div className={styles.problemBar}>
-                <span className={styles.problemTitle}>{problem.title}</span>
-                <span className={`${styles.problemDifficulty} ${styles.difficultyMedium}`}>{problem.difficulty}</span>
-              </div>
-            )}
             <div className={styles.editorSection}>
               <div className={styles.editorToolbar}>
                 <div className={styles.editorToolbarLeft}>
