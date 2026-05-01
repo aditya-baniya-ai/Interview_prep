@@ -362,7 +362,6 @@ export class GeminiLiveClient {
             this.sendText(
               "[INTERVIEW_START] The candidate has just joined and their mic is live. As Sarah, warmly greet them now and ask them to briefly introduce themselves. Start speaking immediately."
             );
-            this.scheduleSilenceNudge();
           }
         }, 600);
       }
