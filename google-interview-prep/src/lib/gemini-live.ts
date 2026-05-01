@@ -202,10 +202,8 @@ export class GeminiLiveClient {
         realtimeInputConfig: {
           automaticActivityDetection: {
             disabled: false,
-            silenceDurationMs: 4000,   // needs 4s of silence before turn ends
-            prefixPaddingMs: 700,      // needs 0.7s of speech before triggering
-            endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+            silenceDurationMs: 4000,
+            prefixPaddingMs: 700,
           },
         },
       },
