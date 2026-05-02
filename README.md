@@ -31,8 +31,9 @@ Mock interviews with real engineers are rare, expensive, and hard to schedule. A
 **Coding Interview (DSA)**
 - The AI presents a real DSA problem (Arrays, Trees, Graphs, DP, Strings) calibrated to Easy / Medium / Hard (L2–L5+)
 - You speak your approach out loud while writing code in a Monaco editor
-- Your code is silently synced to the AI every 10 seconds — it can see exactly what you're building and gives targeted hints accordingly
+- Your code is silently synced to the AI in real time — it can see exactly what you're building and gives targeted hints accordingly
 - A Judge0 sandbox compiles and runs your code against test cases in real time
+- Access to a **comprehensive problem bank of 50+ curated FAANG questions**, filtered seamlessly on your dashboard.
 
 **Behavioral Interview (STAR)**
 - The AI asks behavioral questions on Leadership, Teamwork, Conflict Resolution, and Growth
@@ -44,6 +45,9 @@ The interviewer is fully voice-driven. You speak; it listens and responds with s
 
 ### Animated AI Interviewer — "Sarah"
 The interview UI simulates a video call with a photorealistic AI interviewer. Her mouth animates in sync with her speech — without any third-party avatar API. The system alternates between a closed-mouth and open-mouth image on a 150ms interval whenever audio is streaming, creating a convincing lip-sync effect at zero added cost or latency.
+
+### Responsive & Accessible Everywhere
+The entire platform is fully responsive and optimized for mobile devices, allowing candidates to practice anywhere. We also offer a **Guest Login** flow for frictionless access alongside standard Google/Firebase authentication.
 
 ### Feedback Report
 When the interview ends, Gemini 2.5 Flash — acting as a Senior Engineer — evaluates your complete transcript and final code submission against a structured rubric:
@@ -61,7 +65,7 @@ When the interview ends, Gemini 2.5 Flash — acting as a Senior Engineer — ev
 ```
 Browser (Next.js)
     │
-    ├── 1. Requests ephemeral token  ──►  FastAPI Backend
+    ├── 1. Requests ephemeral token  ──►  FastAPI Backend (Cloud Run)
     │                                         │
     │   ◄── Short-lived token ────────────────┘
     │
@@ -69,7 +73,7 @@ Browser (Next.js)
     │         │                               │
     │   PCM audio (16kHz, base64)    ◄── Audio chunks + text
     │
-    ├── 3. Code sync (every 10s)  ──►  WebSocket clientContent
+    ├── 3. Code sync (in real time) ──►  WebSocket clientContent
     │
     └── 4. End of interview POST  ──►  FastAPI /generate-feedback
                                            │
@@ -106,7 +110,8 @@ The backend uses **Google's Agent Development Kit** to orchestrate a hierarchy o
 | **AI — Feedback** | Gemini 2.5 Flash (structured JSON evaluation) |
 | **Agent Framework** | Google ADK (Agent Development Kit) |
 | **Code Execution** | Judge0 (multi-language sandbox) |
-| **Auth & Storage** | Firebase Authentication + Firestore |
+| **Database & Auth** | Firebase Firestore (Problem Bank) + Firebase Authentication |
+| **Deployment** | Vercel (Frontend) & Google Cloud Run (Backend) |
 | **Theming** | CSS custom properties, light/dark toggle, flash-free SSR |
 
 ---
@@ -117,7 +122,7 @@ The backend uses **Google's Agent Development Kit** to orchestrate a hierarchy o
 - Node.js 18+
 - Python 3.12+
 - A Google Gemini API key
-- A Firebase project
+- A Firebase project (for Auth and Firestore)
 
 ### 1. Clone the repo
 ```bash
@@ -125,7 +130,7 @@ git clone https://github.com/aditya-baniya-ai/Interview_prep.git
 cd Interview_prep/google-interview-prep
 ```
 
-### 2. Frontend
+### 2. Frontend Setup
 ```bash
 npm install
 ```
@@ -141,11 +146,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 ```
 
+Start the Next.js development server:
 ```bash
-npx next dev
+npm run dev
 ```
 
-### 3. Backend
+### 3. Backend Setup
 ```bash
 cd backend
 python3.12 -m venv venv
@@ -158,6 +164,7 @@ Create `backend/.env`:
 GEMINI_API_KEY=your_key_here
 ```
 
+Start the FastAPI backend:
 ```bash
 uvicorn main:app --reload --port 8000
 ```
@@ -202,7 +209,7 @@ Most "AI interviewers" are language models with a chat interface. FAANG Prep AI 
 The primary channel. The candidate speaks; Gemini processes raw audio — not a transcript — which means it captures hesitation, filler words, pacing, and confidence in ways that text transcription discards. The AI responds in natural speech, not synthesized from text-to-speech after the fact.
 
 **2. Live Code (silent text injection)**
-Every 10 seconds, the current state of the Monaco editor is pushed into the AI's context window as a silent `clientContent` message. The AI doesn't wait to be told about your code — it just knows. This enables organic, code-aware questions: *"You're using O(n²) here — is there a way to bring that down?"* without the candidate having to explicitly submit or share anything.
+In real time, the current state of the Monaco editor is pushed into the AI's context window as a silent `clientContent` message. The AI doesn't wait to be told about your code — it just knows. This enables organic, code-aware questions: *"You're using O(n²) here — is there a way to bring that down?"* without the candidate having to explicitly submit or share anything.
 
 **3. Webcam (video)**
 The candidate's webcam feed is active throughout the session. The system captures engagement signals — eye contact, posture, composure — that feed into the post-interview feedback score under the **Engagement** dimension. This is the modality that no text-based prep tool can replicate.
@@ -223,7 +230,7 @@ Routing audio through the backend would add 200–400ms per chunk. The ephemeral
 Services like HeyGen add ~1–2s of latency and significant cost per session. The alternating image approach delivers a visually convincing result at zero added latency or cost.
 
 **Live code sync as silent context**
-Rather than asking the candidate to explicitly "submit" their code, a background interval pushes the current editor state into the AI's context window every 10 seconds. The interviewer naturally incorporates this — asking "I see you're using a hash map here, can you walk me through why?" — without any explicit handoff.
+Rather than asking the candidate to explicitly "submit" their code, a background interval pushes the current editor state into the AI's context window in real time. The interviewer naturally incorporates this — asking "I see you're using a hash map here, can you walk me through why?" — without any explicit handoff.
 
 **CSS-only dark mode with no flash**
 An inline `<script>` in `<head>` reads `localStorage` synchronously before React hydrates, setting `data-theme` on `<html>` before the first paint. Zero flash of wrong theme.
