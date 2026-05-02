@@ -151,6 +151,16 @@ export default function DashboardPage() {
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
 
+  // Pre-generate the session id ONCE per dashboard mount. We reuse it
+  // across token prefetches AND the actual Start-Interview navigation,
+  // so the prefetched token in sessionStorage is keyed to the same id
+  // the interview page will look up. (Practice-question card clicks
+  // intentionally do NOT use this id — each card needs its own session
+  // because the system_instruction is baked with a specific problem.)
+  const [prefetchedSessionId] = useState(
+    () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  );
+
   const availableDurations: number[] =
     interviewType === "coding"         ? [5, 10, 20, 30, 45] :
     interviewType === "system-design"  ? [20, 30, 45, 60]    :
@@ -232,6 +242,60 @@ export default function DashboardPage() {
     }
   }, [interviewType]);
 
+  // ── Pre-warm the Gemini Live token in the background ─────────────────────
+  // /api/live/token is the slowest hop in interview startup — it round-trips
+  // to Google's auth_tokens.create endpoint to mint an ephemeral token. By
+  // firing this request now, while the candidate is still reading the cards
+  // and tweaking settings, we hide that latency entirely: by the time they
+  // click "Start Interview", the response is already sitting in
+  // sessionStorage and the interview page can open the WebSocket immediately
+  // (see GeminiLiveClient.connect → prefetchedTokenData branch).
+  //
+  // We re-prefetch on every change to (interviewType, difficulty, resumeText)
+  // because each of those affects the system_instruction baked into the
+  // returned token, debounced 300 ms so flipping rapidly between modes
+  // doesn't fire a flurry of requests. Resume-dive without a parsed resume
+  // is skipped — the system instruction would be missing the resume context
+  // the candidate is about to upload.
+  useEffect(() => {
+    if (!user) return; // wait until auth has resolved
+    if (interviewType === "resume-dive" && resumeStatus !== "ready") return;
+
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      try {
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const res = await fetch(`${backendUrl}/api/live/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            interview_type: interviewType,
+            session_id: prefetchedSessionId,
+            difficulty,
+            resume_text: resumeText || undefined,
+          }),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        sessionStorage.setItem(
+          `live_token_${prefetchedSessionId}`,
+          JSON.stringify({ data, fetchedAt: Date.now() })
+        );
+      } catch {
+        // Aborted on rerun, or backend down — silently fall back. The
+        // interview page will fetch the token itself if there's nothing
+        // cached, so this prefetch is strictly an optimization.
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+      ctrl.abort();
+    };
+  }, [user, interviewType, difficulty, resumeText, resumeStatus, prefetchedSessionId]);
+
   const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -282,7 +346,9 @@ export default function DashboardPage() {
   const handleStartInterview = () => {
     if (interviewType === "resume-dive" && resumeStatus !== "ready") return;
 
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Reuse the session id we used for the background token prefetch so
+    // the interview page can find the cached token in sessionStorage.
+    const sessionId = prefetchedSessionId;
 
     // Store resume text in sessionStorage before navigating
     if (interviewType === "resume-dive" && resumeText) {
