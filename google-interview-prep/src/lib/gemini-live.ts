@@ -647,6 +647,103 @@ export class GeminiLiveClient {
   }
 
   /**
+   * Pivot the AI mid-session from the behavioral round to the coding round.
+   *
+   * Why this exists: Gemini Live's `systemInstruction` is fixed at session
+   * setup and can't be swapped without reconnecting (which would kill the
+   * existing audio context + conversation history). So when the candidate
+   * clicks "Move to Coding Round" we instead push a high-priority user-role
+   * text turn that overrides Sarah's behavior for the rest of the session
+   * AND hands her the coding problem to present.
+   *
+   * We also bump `this.config.interviewType` so the silence-nudge copy and
+   * silenceThresholdMs both flip to their coding-round variants for any
+   * follow-on nudges.
+   */
+  transitionToCoding(
+    problem: {
+      title?: string;
+      difficulty?: string;
+      description?: string;
+      examples?: { input?: string; output?: string; explanation?: string }[];
+      constraints?: string[];
+      tags?: string[];
+      optimalTimeComplexity?: string;
+      optimalSpaceComplexity?: string;
+    } | null,
+  ): void {
+    if (!this.ws || !this.isConnected) return;
+
+    // Update interview type so silence nudges + thresholds use the coding
+    // flavor for the rest of the session.
+    this.config.interviewType = "coding";
+
+    // If Sarah is mid-sentence on a behavioral question, cut her off cleanly
+    // so the next thing the candidate hears is the pivot, not the tail of an
+    // already-irrelevant behavioral prompt.
+    if (this.isPlaying) {
+      this.stopPlayback();
+    }
+    // Same idea on the silence side: re-arm the silence timer to the new
+    // (coding) threshold from now.
+    this.clearSilenceNudge();
+
+    const problemBlock = problem
+      ? [
+          "",
+          "## The Coding Problem To Present",
+          `Title: ${problem.title ?? ""}`,
+          `Difficulty: ${problem.difficulty ?? ""}`,
+          problem.tags?.length ? `Tags: ${problem.tags.join(", ")}` : "",
+          "",
+          "Description:",
+          problem.description ?? "",
+          "",
+          problem.examples?.length
+            ? "Examples:\n" +
+              problem.examples
+                .map(
+                  (ex) =>
+                    `- Input: ${ex.input ?? ""}, Output: ${ex.output ?? ""}`,
+                )
+                .join("\n")
+            : "",
+          problem.constraints?.length
+            ? "Constraints:\n" +
+              problem.constraints.map((c) => `- ${c}`).join("\n")
+            : "",
+          problem.optimalTimeComplexity
+            ? `Optimal Time Complexity: ${problem.optimalTimeComplexity}`
+            : "",
+          problem.optimalSpaceComplexity
+            ? `Optimal Space Complexity: ${problem.optimalSpaceComplexity}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "\n(No specific problem was loaded — pick an appropriate L3 coding problem yourself and present it.)";
+
+    const nudge = `[PHASE_SWITCH → CODING] The candidate has just clicked "Move to Coding Round". From THIS turn onward you are NO LONGER a behavioral interviewer — you are a friendly but rigorous Google L3 software-engineering interviewer running a live coding round. Stop asking behavioral questions immediately and do not return to them.
+
+On your VERY NEXT turn, do exactly this:
+1. In one short sentence, acknowledge the transition (e.g., "Great — let's switch gears to the coding round.").
+2. Present the coding problem below conversationally: state the title, walk through the problem in plain English, and read out the first example.
+3. Invite the candidate to ask clarifying questions before they start coding.
+${problemBlock}
+
+Coding-round speaking rules for the rest of the session:
+- Keep responses SHORT (1–3 sentences) while the candidate is coding.
+- Ask them to talk through their approach BEFORE they type it.
+- NEVER give the full solution. Hints must be subtle and progressive.
+- Eventually probe time/space complexity and edge cases.
+- Stay in English regardless of what language the candidate uses.`;
+
+    this.sendText(nudge);
+    // Re-arm the silence countdown under the new (coding) threshold.
+    this.scheduleSilenceNudge();
+  }
+
+  /**
    * Play audio chunk received from Gemini (base64 encoded 24kHz PCM).
    * Uses sequential scheduling so chunks play one after another,
    * not all at once.

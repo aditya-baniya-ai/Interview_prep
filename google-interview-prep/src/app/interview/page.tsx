@@ -473,7 +473,10 @@ function InterviewContent() {
     }, 2000);
   };
 
-  const fetchProblem = useCallback(async () => {
+  // Returns the freshly-loaded problem so callers (e.g., the behavioral →
+  // coding transition) can hand it straight to the AI without waiting for
+  // React's setProblem state update to flush.
+  const fetchProblem = useCallback(async (): Promise<InterviewProblem | null> => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
@@ -484,24 +487,26 @@ function InterviewContent() {
           const full = await res.json();
           setProblem(full);
           if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
-          return;
+          return full;
         }
       }
 
       // Fallback: pick a random problem matching the selected difficulty
       const listRes = await fetch(`${backendUrl}/api/problems`);
-      if (!listRes.ok) return;
+      if (!listRes.ok) return null;
       const list = await listRes.json();
       const filtered = list.filter((p: { difficulty: string }) => p.difficulty === difficulty);
       const pool = filtered.length ? filtered : list;
       const picked = pool[Math.floor(Math.random() * pool.length)];
       const fullRes = await fetch(`${backendUrl}/api/problems/${picked.id}`);
-      if (!fullRes.ok) return;
+      if (!fullRes.ok) return null;
       const full = await fullRes.json();
       setProblem(full);
       if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
+      return full;
     } catch (e) {
       console.error("Failed to fetch problem:", e);
+      return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty, selectedLanguage, problemId]);
@@ -514,7 +519,37 @@ function InterviewContent() {
 
   const handleTransitionToCoding = async () => {
     setPhase("transitioning");
-    await fetchProblem();
+
+    // Surface the round switch in the transcript IMMEDIATELY so the
+    // candidate has visual confirmation that the button worked, even
+    // before Sarah finishes her current sentence and pivots verbally.
+    setTranscript((prev) => {
+      const next: TranscriptEntry[] = [
+        ...prev,
+        {
+          speaker: "interviewer",
+          text:
+            "Switching to the coding round as you requested — your problem is loading and I'll walk you through it in just a moment.",
+          timestamp: Date.now(),
+        },
+      ];
+      transcriptRef.current = next;
+      return next;
+    });
+
+    // Load the problem first so we can hand it directly to Sarah; relying
+    // on the `problem` state would read a stale value inside this closure.
+    const fetched = await fetchProblem();
+
+    // Tell Gemini Live to drop behavioral mode and start the coding round
+    // with the freshly-loaded problem. Without this the AI keeps following
+    // the behavioral system instruction it was set up with at session start
+    // and continues asking behavioral questions — which is the bug we're
+    // fixing here.
+    if (geminiRef.current?.connected) {
+      geminiRef.current.transitionToCoding(fetched);
+    }
+
     await new Promise((r) => setTimeout(r, 2000));
     setPhase("coding");
   };
