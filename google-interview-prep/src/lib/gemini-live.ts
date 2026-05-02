@@ -17,25 +17,40 @@ export type InterviewType =
   | "data-analyst"
   | "resume-dive";
 
-export interface GeminiLiveConfig {
-  backendUrl: string;
-  interviewType: InterviewType;
-  sessionId?: string;
-  difficulty?: string;
-  resumeText?: string;
-  onTranscriptUpdate: (speaker: "user" | "interviewer", text: string, isFinal: boolean) => void;
-  onAudioStateChange: (isPlaying: boolean) => void;
-  onConnectionChange: (connected: boolean) => void;
-  onError: (error: string) => void;
-}
-
-interface TokenResponse {
+/**
+ * Shape of the payload returned by /api/live/token. Exported so the
+ * dashboard can prefetch and stash it in sessionStorage, then hand it
+ * back to us via `GeminiLiveConfig.prefetchedTokenData` to skip the
+ * (slow) round-trip when starting the interview.
+ */
+export interface PrefetchedLiveToken {
   token: string;
   model: string;
   websocket_url: string;
   system_instruction: string;
   fallback?: boolean;
 }
+
+export interface GeminiLiveConfig {
+  backendUrl: string;
+  interviewType: InterviewType;
+  sessionId?: string;
+  difficulty?: string;
+  resumeText?: string;
+  /**
+   * Optional token payload obtained ahead of time (e.g., prefetched on the
+   * dashboard while the candidate is configuring the session). When set,
+   * `connect()` skips the /api/live/token round-trip and uses this directly,
+   * shaving ~hundreds of ms off interview-start latency on cold backends.
+   */
+  prefetchedTokenData?: PrefetchedLiveToken;
+  onTranscriptUpdate: (speaker: "user" | "interviewer", text: string, isFinal: boolean) => void;
+  onAudioStateChange: (isPlaying: boolean) => void;
+  onConnectionChange: (connected: boolean) => void;
+  onError: (error: string) => void;
+}
+
+type TokenResponse = PrefetchedLiveToken;
 
 export class GeminiLiveClient {
   private config: GeminiLiveConfig;
@@ -140,20 +155,28 @@ export class GeminiLiveClient {
    */
   async connect(): Promise<void> {
     try {
-      // Step 1: Get ephemeral token from our backend
-      const res = await fetch(`${this.config.backendUrl}/api/live/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          interview_type: this.config.interviewType,
-          session_id: this.config.sessionId,
-          difficulty: this.config.difficulty,
-          resume_text: this.config.resumeText,
-        }),
-      });
+      // Step 1: Get ephemeral token from our backend, OR reuse one that
+      // was prefetched on the dashboard while the candidate was configuring
+      // the session. The prefetch path skips a hundred-millisecond-class
+      // round-trip and is the entire reason for this branch.
+      if (this.config.prefetchedTokenData) {
+        console.log("⚡ Using prefetched Gemini Live token (skipping /api/live/token)");
+        this.tokenData = this.config.prefetchedTokenData;
+      } else {
+        const res = await fetch(`${this.config.backendUrl}/api/live/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            interview_type: this.config.interviewType,
+            session_id: this.config.sessionId,
+            difficulty: this.config.difficulty,
+            resume_text: this.config.resumeText,
+          }),
+        });
 
-      if (!res.ok) throw new Error(`Token fetch failed: ${res.status}`);
-      this.tokenData = await res.json();
+        if (!res.ok) throw new Error(`Token fetch failed: ${res.status}`);
+        this.tokenData = await res.json();
+      }
 
       // Step 2: Connect to Gemini Live API WebSocket
       // Ephemeral tokens use access_token=, fallback (API key) uses key=

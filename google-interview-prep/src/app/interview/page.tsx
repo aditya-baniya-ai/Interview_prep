@@ -10,7 +10,11 @@ import {
   TestResult,
   InterviewProblem,
 } from "@/lib/websocket";
-import { GeminiLiveClient, type InterviewType } from "@/lib/gemini-live";
+import {
+  GeminiLiveClient,
+  type InterviewType,
+  type PrefetchedLiveToken,
+} from "@/lib/gemini-live";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "@firebase/firestore";
 import { NavBrand } from "@/components/NavBrand";
@@ -301,10 +305,37 @@ function InterviewContent() {
     if (geminiRef.current) return;
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-    
+
     const resumeText = typeof window !== "undefined"
       ? sessionStorage.getItem(`resume_${sessionId}`) ?? undefined
       : undefined;
+
+    // Pick up the token the dashboard prefetched in the background, if any,
+    // so we can skip the /api/live/token round-trip and connect to Gemini
+    // immediately. Tokens expire ~60 min after Google issues them — be
+    // conservative and only reuse if it was minted in the last 50 min.
+    let prefetchedTokenData: PrefetchedLiveToken | undefined;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = sessionStorage.getItem(`live_token_${sessionId}`);
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            data?: PrefetchedLiveToken;
+            fetchedAt?: number;
+          };
+          const ageMs = Date.now() - (parsed.fetchedAt ?? 0);
+          if (parsed.data && ageMs < 50 * 60 * 1000) {
+            prefetchedTokenData = parsed.data;
+          }
+          // Single-use cache: clear so a future reload of the same
+          // sessionId doesn't try to reuse an exhausted token (each
+          // ephemeral token has a small `uses` budget on Google's side).
+          sessionStorage.removeItem(`live_token_${sessionId}`);
+        }
+      } catch {
+        // Malformed cache entry — fall back to a normal fetch in connect().
+      }
+    }
 
     const client = new GeminiLiveClient({
       backendUrl,
@@ -312,6 +343,7 @@ function InterviewContent() {
       sessionId,
       difficulty,
       resumeText,
+      prefetchedTokenData,
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
 
