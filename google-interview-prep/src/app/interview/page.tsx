@@ -10,11 +10,7 @@ import {
   TestResult,
   InterviewProblem,
 } from "@/lib/websocket";
-import {
-  GeminiLiveClient,
-  type InterviewType,
-  type PrefetchedLiveToken,
-} from "@/lib/gemini-live";
+import { GeminiLiveClient, type InterviewType } from "@/lib/gemini-live";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "@firebase/firestore";
 import { NavBrand } from "@/components/NavBrand";
@@ -63,7 +59,7 @@ const DEFAULT_CODE: Record<string, string> = {
 function InterviewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // URL params
   const interviewType = searchParams.get("type") || "coding";
@@ -305,37 +301,10 @@ function InterviewContent() {
     if (geminiRef.current) return;
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
+    
     const resumeText = typeof window !== "undefined"
       ? sessionStorage.getItem(`resume_${sessionId}`) ?? undefined
       : undefined;
-
-    // Pick up the token the dashboard prefetched in the background, if any,
-    // so we can skip the /api/live/token round-trip and connect to Gemini
-    // immediately. Tokens expire ~60 min after Google issues them — be
-    // conservative and only reuse if it was minted in the last 50 min.
-    let prefetchedTokenData: PrefetchedLiveToken | undefined;
-    if (typeof window !== "undefined") {
-      try {
-        const raw = sessionStorage.getItem(`live_token_${sessionId}`);
-        if (raw) {
-          const parsed = JSON.parse(raw) as {
-            data?: PrefetchedLiveToken;
-            fetchedAt?: number;
-          };
-          const ageMs = Date.now() - (parsed.fetchedAt ?? 0);
-          if (parsed.data && ageMs < 50 * 60 * 1000) {
-            prefetchedTokenData = parsed.data;
-          }
-          // Single-use cache: clear so a future reload of the same
-          // sessionId doesn't try to reuse an exhausted token (each
-          // ephemeral token has a small `uses` budget on Google's side).
-          sessionStorage.removeItem(`live_token_${sessionId}`);
-        }
-      } catch {
-        // Malformed cache entry — fall back to a normal fetch in connect().
-      }
-    }
 
     const client = new GeminiLiveClient({
       backendUrl,
@@ -343,7 +312,6 @@ function InterviewContent() {
       sessionId,
       difficulty,
       resumeText,
-      prefetchedTokenData,
       onTranscriptUpdate: (speaker, text, isFinal) => {
         const sp = speaker === "user" ? "user" : "interviewer";
 
@@ -505,10 +473,7 @@ function InterviewContent() {
     }, 2000);
   };
 
-  // Returns the freshly-loaded problem so callers (e.g., the behavioral →
-  // coding transition) can hand it straight to the AI without waiting for
-  // React's setProblem state update to flush.
-  const fetchProblem = useCallback(async (): Promise<InterviewProblem | null> => {
+  const fetchProblem = useCallback(async () => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
@@ -519,26 +484,24 @@ function InterviewContent() {
           const full = await res.json();
           setProblem(full);
           if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
-          return full;
+          return;
         }
       }
 
       // Fallback: pick a random problem matching the selected difficulty
       const listRes = await fetch(`${backendUrl}/api/problems`);
-      if (!listRes.ok) return null;
+      if (!listRes.ok) return;
       const list = await listRes.json();
       const filtered = list.filter((p: { difficulty: string }) => p.difficulty === difficulty);
       const pool = filtered.length ? filtered : list;
       const picked = pool[Math.floor(Math.random() * pool.length)];
       const fullRes = await fetch(`${backendUrl}/api/problems/${picked.id}`);
-      if (!fullRes.ok) return null;
+      if (!fullRes.ok) return;
       const full = await fullRes.json();
       setProblem(full);
       if (full.starterCode?.[selectedLanguage]) setCode(full.starterCode[selectedLanguage]);
-      return full;
     } catch (e) {
       console.error("Failed to fetch problem:", e);
-      return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty, selectedLanguage, problemId]);
@@ -551,37 +514,7 @@ function InterviewContent() {
 
   const handleTransitionToCoding = async () => {
     setPhase("transitioning");
-
-    // Surface the round switch in the transcript IMMEDIATELY so the
-    // candidate has visual confirmation that the button worked, even
-    // before Sarah finishes her current sentence and pivots verbally.
-    setTranscript((prev) => {
-      const next: TranscriptEntry[] = [
-        ...prev,
-        {
-          speaker: "interviewer",
-          text:
-            "Switching to the coding round as you requested — your problem is loading and I'll walk you through it in just a moment.",
-          timestamp: Date.now(),
-        },
-      ];
-      transcriptRef.current = next;
-      return next;
-    });
-
-    // Load the problem first so we can hand it directly to Sarah; relying
-    // on the `problem` state would read a stale value inside this closure.
-    const fetched = await fetchProblem();
-
-    // Tell Gemini Live to drop behavioral mode and start the coding round
-    // with the freshly-loaded problem. Without this the AI keeps following
-    // the behavioral system instruction it was set up with at session start
-    // and continues asking behavioral questions — which is the bug we're
-    // fixing here.
-    if (geminiRef.current?.connected) {
-      geminiRef.current.transitionToCoding(fetched);
-    }
-
+    await fetchProblem();
     await new Promise((r) => setTimeout(r, 2000));
     setPhase("coding");
   };
@@ -798,6 +731,10 @@ function InterviewContent() {
     }
     return () => clearInterval(interval);
   }, [isGeneratingFeedback]);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login");
+  }, [authLoading, user, router]);
 
   // Loading states
   if (isGeneratingFeedback) {
