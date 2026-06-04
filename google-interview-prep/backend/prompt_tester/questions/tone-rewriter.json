@@ -1,0 +1,51 @@
+{
+  "slug": "tone-rewriter",
+  "title": "Casual to Formal Tone Rewriter",
+  "task_spec": "Write a prompt that rewrites a given casual/slang message into formal business English suitable for a professional email. Preserve the core meaning.",
+  "difficulty": "hard",
+  "category": "summarization",
+  "tags": ["tone", "rewriting", "business-english", "judge"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 512,
+    "token_budget": 200
+  },
+  "rubric": {
+    "formal_tone_and_meaning": "Does the output use formal business English (no slang, contractions minimized, professional tone), while preserving the original message's core meaning?"
+  },
+  "reference_solution_prompt": "Rewrite the following casual or informal message into formal business English suitable for a professional email. Your rewrite must:\n1. Use formal vocabulary and sentence structure\n2. Remove slang, colloquialisms, and contractions where possible\n3. Preserve the complete original meaning and all key information\n4. Maintain a professional, respectful tone\n5. Be appropriately concise\n\nReturn only the rewritten message — no preamble like 'Here is the rewritten message:'\n\nCasual message:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "hey gonna be late to the meeting tmrw, something came up lol. can we push it back like an hour?",
+      "type": "judge",
+      "rubric_ref": "formal_tone_and_meaning",
+      "weight": 2.0
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "yo the project deadline is super tight and honestly the whole team is kinda stressed out. we def need more time or extra hands on deck asap",
+      "type": "judge",
+      "rubric_ref": "formal_tone_and_meaning",
+      "weight": 2.5
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "tbh i think that new feature is totally unnecessary and nobody wants it. maybe we should just scrap it and focus on fixing the bugs instead?",
+      "type": "judge",
+      "rubric_ref": "formal_tone_and_meaning",
+      "weight": 2.5
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "omg the client loved the presentation!!! they wanna sign the contract like next week. this is huge for us!!",
+      "type": "judge",
+      "rubric_ref": "formal_tone_and_meaning",
+      "weight": 2.0
+    }
+  ]
+}

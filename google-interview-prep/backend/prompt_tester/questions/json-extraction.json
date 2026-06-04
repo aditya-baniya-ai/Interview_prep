@@ -1,0 +1,93 @@
+{
+  "slug": "json-extraction",
+  "title": "Structured Job Posting Extraction",
+  "task_spec": "Write a prompt that reads an unstructured job posting and extracts: title, company, location, salary_range (or null), requirements (string array). Return valid JSON matching that schema exactly.",
+  "difficulty": "medium",
+  "category": "structured_output",
+  "tags": ["json", "extraction", "structured-output", "nlp"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 1024,
+    "token_budget": 300
+  },
+  "rubric": {},
+  "reference_solution_prompt": "Extract structured information from the following job posting and return it as a JSON object with exactly these fields:\n- title (string): the job title\n- company (string): the company name\n- location (string): the job location\n- salary_range (string or null): the salary range if mentioned, otherwise null\n- requirements (array of strings): list of job requirements\n\nReturn only valid JSON with no explanation, markdown formatting, or code blocks.\n\nJob posting:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "Senior Software Engineer at Acme Corp\n\nAcme Corp is hiring a Senior Software Engineer in San Francisco, CA. Salary: $150,000 - $200,000/year.\n\nRequirements:\n- 5+ years of Python experience\n- Experience with distributed systems\n- Strong problem-solving skills",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["title", "company", "location", "salary_range", "requirements"],
+        "properties": {
+          "title": {"type": "string"},
+          "company": {"type": "string"},
+          "location": {"type": "string"},
+          "salary_range": {"type": ["string", "null"]},
+          "requirements": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        },
+        "additionalProperties": false
+      },
+      "weight": 2.0
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "Data Analyst Position - Remote\n\nWe are looking for a Data Analyst to join our growing team at DataDriven Inc. This is a fully remote position.\n\nYou will need:\n• Proficiency in SQL\n• Experience with Tableau or Power BI\n• Bachelor's degree in a quantitative field\n• Strong communication skills",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["title", "company", "location", "salary_range", "requirements"],
+        "properties": {
+          "title": {"type": "string"},
+          "company": {"type": "string"},
+          "location": {"type": "string"},
+          "salary_range": {"type": "null"},
+          "requirements": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        },
+        "additionalProperties": false
+      },
+      "weight": 2.0
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "MARKETING MANAGER\nCompany: BrandBoost Agency\nLocation: New York, NY (Hybrid)\nCompensation: $80k-$100k + benefits\n\nKey Requirements: 3 years marketing experience, Google Ads certification, data-driven mindset, team leadership experience.",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["title", "company", "location", "salary_range", "requirements"],
+        "properties": {
+          "title": {"type": "string"},
+          "company": {"type": "string"},
+          "location": {"type": "string"},
+          "salary_range": {"type": ["string", "null"]},
+          "requirements": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        },
+        "additionalProperties": false
+      },
+      "weight": 2.5
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "Join TechStart as a Junior Developer in Austin TX. No salary mentioned. Must know JavaScript and React. Bonus if you know TypeScript. Fresh graduates welcome.",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["title", "company", "location", "salary_range", "requirements"],
+        "properties": {
+          "title": {"type": "string"},
+          "company": {"type": "string"},
+          "location": {"type": "string"},
+          "salary_range": {"type": "null"},
+          "requirements": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        },
+        "additionalProperties": false
+      },
+      "weight": 2.0
+    }
+  ]
+}
