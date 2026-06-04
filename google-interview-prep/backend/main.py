@@ -762,3 +762,12 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=HOST, port=PORT, reload=True)
+
+
+# ── Prompt Engineering Tester (feature-flagged) ──────────────────────────
+import os as _os
+if _os.getenv("PROMPT_TESTER_ENABLED", "").lower() in ("1", "true", "yes"):
+    from prompt_tester.database import init_db as _pt_init_db
+    from prompt_tester.router import router as _pt_router
+    _pt_init_db()
+    app.include_router(_pt_router)

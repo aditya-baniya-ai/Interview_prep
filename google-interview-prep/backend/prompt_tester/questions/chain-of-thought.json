@@ -1,0 +1,101 @@
+{
+  "slug": "chain-of-thought",
+  "title": "Chain-of-Thought Math Problem Solver",
+  "task_spec": "Write a prompt that solves a math word problem step by step. Output must be a JSON object with 'reasoning' (string: your step-by-step work) and 'answer' (number). No other fields.",
+  "difficulty": "hard",
+  "category": "structured_output",
+  "tags": ["math", "chain-of-thought", "json", "reasoning"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 1024,
+    "token_budget": 400
+  },
+  "rubric": {},
+  "reference_solution_prompt": "Solve the following math word problem step by step. Show your complete reasoning process.\n\nReturn your response as a JSON object with exactly two fields:\n- \"reasoning\": a string containing your step-by-step work (show all calculations)\n- \"answer\": a number (integer or decimal) representing the final numerical answer\n\nDo not include any other fields, markdown formatting, or explanation outside the JSON.\n\nMath problem:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "A store sells apples for $0.75 each and oranges for $1.25 each. Sarah buys 8 apples and 4 oranges. How much does she pay in total?",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["reasoning", "answer"],
+        "properties": {
+          "reasoning": {"type": "string", "minLength": 10},
+          "answer": {"type": "number"}
+        },
+        "additionalProperties": false
+      },
+      "expected": {"reasoning": null, "answer": 11.0},
+      "weight": 2.0
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "A train travels at 60 mph for 2.5 hours, then at 80 mph for 1.5 hours. What is the total distance traveled in miles?",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["reasoning", "answer"],
+        "properties": {
+          "reasoning": {"type": "string", "minLength": 10},
+          "answer": {"type": "number"}
+        },
+        "additionalProperties": false
+      },
+      "expected": {"reasoning": null, "answer": 270.0},
+      "weight": 2.0
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "There are 24 students in a class. 1/3 of them play soccer, 1/4 play basketball, and the rest play neither. How many students play neither sport?",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["reasoning", "answer"],
+        "properties": {
+          "reasoning": {"type": "string", "minLength": 10},
+          "answer": {"type": "number"}
+        },
+        "additionalProperties": false
+      },
+      "expected": {"reasoning": null, "answer": 10.0},
+      "weight": 2.0
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "A rectangle has a perimeter of 56 cm. If the length is 3 times the width, what is the area of the rectangle in square centimeters?",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["reasoning", "answer"],
+        "properties": {
+          "reasoning": {"type": "string", "minLength": 10},
+          "answer": {"type": "number"}
+        },
+        "additionalProperties": false
+      },
+      "expected": {"reasoning": null, "answer": 147.0},
+      "weight": 2.5
+    },
+    {
+      "id": "tc5",
+      "hidden_input": "If a shirt originally costs $80 and is on sale for 35% off, then an additional 10% coupon is applied to the sale price, what is the final price?",
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "required": ["reasoning", "answer"],
+        "properties": {
+          "reasoning": {"type": "string", "minLength": 10},
+          "answer": {"type": "number"}
+        },
+        "additionalProperties": false
+      },
+      "expected": {"reasoning": null, "answer": 46.8},
+      "weight": 2.5
+    }
+  ]
+}

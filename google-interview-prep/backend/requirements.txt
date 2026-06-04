@@ -11,3 +11,6 @@ Pillow>=10.0.0
 pypdf>=4.0.0
 python-docx>=1.0.0
 python-multipart>=0.0.9
+sqlalchemy>=2.0
+jsonschema>=4.0
+alembic>=1.13

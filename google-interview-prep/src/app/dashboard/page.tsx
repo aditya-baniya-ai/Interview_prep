@@ -610,6 +610,37 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* ---------- Applied AI Engineering ---------- */}
+        {process.env.NEXT_PUBLIC_PROMPT_TESTER_ENABLED === "true" && (
+          <div className={styles.startSection}>
+            <h2 className={styles.startSectionTitle}>Applied AI Engineering</h2>
+            <p style={{ color: "var(--text-secondary)", marginBottom: "var(--space-6)", fontSize: "var(--text-sm)" }}>
+              Write prompts that solve real tasks. Your prompt is graded against hidden test cases — scored on correctness, consistency, and efficiency.
+            </p>
+            <Link
+              href="/prompt-tester"
+              className={styles.interviewTypeCard}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", textDecoration: "none" }}
+            >
+              <div className={`${styles.interviewTypeIcon} ${styles.iconSystemDesign}`}>🧠</div>
+              <h3 className={styles.interviewTypeTitle}>Prompt Engineering Lab</h3>
+              <p className={styles.interviewTypeDesc}>
+                Solve standardized prompt challenges across extraction, classification, structured output, and more.
+                Every submission is graded identically against version-locked test suites.
+              </p>
+              <div className={styles.interviewTypeTags}>
+                {["Extraction", "Classification", "Structured Output", "Constraints"].map((t) => (
+                  <span key={t} className={styles.tag}>{t}</span>
+                ))}
+              </div>
+              <span className={styles.companyPill}>Applied AI · Prompt Engineering</span>
+              <span className="btn btn-primary btn-sm" style={{ marginTop: "var(--space-4)" }}>
+                Browse Challenges →
+              </span>
+            </Link>
+          </div>
+        )}
+
         {/* ---------- History ---------- */}
         <div className={styles.historySection}>
           <h2 className={styles.startSectionTitle}>Past Sessions</h2>
