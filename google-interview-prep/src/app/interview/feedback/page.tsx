@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth";
@@ -141,12 +141,17 @@ function getDecisionClass(decision: string) {
 
 function FeedbackContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sessionId = searchParams.get("sid") || "demo";
   const interviewType = searchParams.get("type") || "coding";
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [feedback, setFeedback] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login");
+  }, [authLoading, user, router]);
 
   useEffect(() => {
     async function loadFeedback() {
