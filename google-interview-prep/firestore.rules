@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public practice-question bank, seeded by backend/seed_questions.py.
+    // Anyone (including anonymous "guest" users) may read; no client writes.
+    match /questions/{questionId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Per-user interview sessions. A signed-in user (Google or anonymous
+    // guest) may read and write only documents under their own uid.
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
