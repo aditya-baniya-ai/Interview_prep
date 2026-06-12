@@ -1,0 +1,63 @@
+{
+  "slug": "classify-sentiment",
+  "title": "Classify Product Review Sentiment",
+  "task_spec": "Write a prompt that classifies the sentiment of a given product review as exactly one of: POSITIVE, NEGATIVE, or NEUTRAL. Return only the label, nothing else.",
+  "difficulty": "easy",
+  "category": "classification",
+  "tags": ["sentiment", "classification", "nlp"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 50,
+    "token_budget": 20
+  },
+  "rubric": {},
+  "reference_solution_prompt": "Classify the sentiment of the following product review as exactly one of these labels: POSITIVE, NEGATIVE, or NEUTRAL.\n\nRules:\n- POSITIVE: The review expresses overall satisfaction or praise.\n- NEGATIVE: The review expresses overall dissatisfaction or criticism.\n- NEUTRAL: The review is mixed, factual, or neither clearly positive nor negative.\n\nReturn only the label (POSITIVE, NEGATIVE, or NEUTRAL) with no explanation or additional text.\n\nReview:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "This laptop is absolutely amazing! The battery life is incredible and it's super fast. Best purchase I've made all year!",
+      "type": "classification",
+      "expected": "POSITIVE",
+      "weight": 1.0
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "Terrible product. Broke after two days. Customer service was completely unhelpful. Do not buy.",
+      "type": "classification",
+      "expected": "NEGATIVE",
+      "weight": 1.0
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "The headphones arrived on time. They have standard sound quality and fit okay. Nothing special.",
+      "type": "classification",
+      "expected": "NEUTRAL",
+      "weight": 1.0
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "Great build quality but the software is buggy and the price is too high for what you get.",
+      "type": "classification",
+      "expected": "NEUTRAL",
+      "weight": 1.5
+    },
+    {
+      "id": "tc5",
+      "hidden_input": "Lol ya right like this thing is TOTALLY worth $500... NOT. Worst. Purchase. Ever.",
+      "type": "classification",
+      "expected": "NEGATIVE",
+      "weight": 2.0
+    },
+    {
+      "id": "tc6",
+      "hidden_input": "",
+      "type": "classification",
+      "expected": "NEUTRAL",
+      "weight": 1.0
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "slug": "format-enforcer",
+  "title": "Markdown Table Formatter",
+  "task_spec": "Write a prompt that converts any input into a markdown table. The table must have a header row, a separator row, and at least one data row. Return only the markdown table, no explanation.",
+  "difficulty": "hard",
+  "category": "constraint",
+  "tags": ["markdown", "formatting", "table", "constraint"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 1024,
+    "token_budget": 300
+  },
+  "rubric": {},
+  "reference_solution_prompt": "Convert the following input into a well-formatted markdown table. Your response must:\n1. Have a header row with column names separated by | characters\n2. Have a separator row using --- (at least 3 dashes per column)\n3. Have at least one data row\n4. Return ONLY the markdown table — no explanation, no preamble, no code blocks\n\nChoose appropriate column headers based on the data provided.\n\nInput:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "Name: Alice, Age: 30, City: New York. Name: Bob, Age: 25, City: Chicago. Name: Carol, Age: 35, City: Los Angeles.",
+      "type": "regex",
+      "pattern": "\\|[^|]+\\|[^|]+\\|.*\\n\\|[-:\\s]+\\|[-:\\s]+\\|",
+      "weight": 2.5
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "Product: Laptop, Price: $999, Stock: 45. Product: Mouse, Price: $29, Stock: 200. Product: Keyboard, Price: $79, Stock: 150.",
+      "type": "regex",
+      "pattern": "\\|.*\\|\\s*\\n\\|[-:\\s|]+\\|\\s*\\n\\|.*\\|",
+      "weight": 2.5
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "Monday: Sunny, 72F. Tuesday: Cloudy, 65F. Wednesday: Rainy, 58F. Thursday: Sunny, 70F.",
+      "type": "regex",
+      "pattern": "\\|[^\\n]+\\|\\n\\|[-\\s|:]+\\|\\n(\\|[^\\n]+\\|\\n?){1,}",
+      "weight": 2.5
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "Just one row: Employee John Smith, Department Engineering, Salary 120000.",
+      "type": "regex",
+      "pattern": "\\|[^|]+\\|.*\\n\\|[-:\\s]+\\|[-:\\s]+\\|",
+      "weight": 2.0
+    }
+  ]
+}

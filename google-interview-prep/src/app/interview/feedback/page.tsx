@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth";
@@ -141,14 +141,23 @@ function getDecisionClass(decision: string) {
 
 function FeedbackContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sessionId = searchParams.get("sid") || "demo";
   const interviewType = searchParams.get("type") || "coding";
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [feedback, setFeedback] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!authLoading && !user) router.push("/login");
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    // Don't attempt any fetch until Firebase auth has resolved — prevents
+    // flashing DEFAULT_FEEDBACK on historical sessions before Firestore loads.
+    if (authLoading) return;
+
     async function loadFeedback() {
       // 1. Try to load from sessionStorage (recent interview)
       const stored = sessionStorage.getItem(`feedback_${sessionId}`);
@@ -192,10 +201,8 @@ function FeedbackContent() {
       setLoading(false);
     }
 
-    // Wait until auth state resolves before attempting to fetch
-    // If not logged in, it will skip Firestore but still fall back
     loadFeedback();
-  }, [sessionId, user]);
+  }, [sessionId, user, authLoading]);
 
   // ── Code review (Monaco IDE) data prep ─────────────────────────────────
   // Computed BEFORE the loading early-return so React Hook ordering is stable
@@ -374,7 +381,12 @@ function FeedbackContent() {
                   Your Space Complexity
                 </div>
                 <div
-                  className={`${styles.complexityValue} ${styles.complexityOptimal}`}
+                  className={`${styles.complexityValue} ${
+                    feedback.coding.spaceComplexity ===
+                    feedback.coding.optimalSpaceComplexity
+                      ? styles.complexityOptimal
+                      : styles.complexitySuboptimal
+                  }`}
                 >
                   {feedback.coding.spaceComplexity}
                 </div>
@@ -608,9 +620,15 @@ function FeedbackContent() {
               <span className={styles.scoreLabel2}>Hints Used</span>
               <div className={styles.scoreBarContainer}>
                 <div
-                  className={`${styles.scoreBar} ${styles.scoreBarOkay}`}
+                  className={`${styles.scoreBar} ${
+                    feedback.communication.hintsUsed === 0
+                      ? styles.scoreBarGood
+                      : feedback.communication.hintsUsed <= 2
+                      ? styles.scoreBarOkay
+                      : styles.scoreBarPoor
+                  }`}
                   style={{
-                    width: `${(feedback.communication.hintsUsed / 5) * 100}%`,
+                    width: `${Math.max(0, 100 - (feedback.communication.hintsUsed / 3) * 100)}%`,
                   }}
                 ></div>
               </div>
@@ -686,7 +704,7 @@ function FeedbackContent() {
             </div>
 
             <ul className={styles.recList}>
-              {feedback.recommendations.map((rec: string, i: number) => (
+              {(feedback.recommendations || []).map((rec: string, i: number) => (
                 <li key={i} className={styles.recItem}>
                   <span className={styles.recIcon}>
                     {i === 0 ? "🔑" : i === 1 ? "💬" : i === 2 ? "⚠️" : i === 3 ? "✨" : "📚"}
@@ -703,7 +721,7 @@ function FeedbackContent() {
           <Link href="/dashboard" className="btn btn-primary btn-lg">
             🔄 Practice Again
           </Link>
-          <button className="btn btn-secondary btn-lg">
+          <button className="btn btn-secondary btn-lg" onClick={() => window.print()}>
             📄 Export as PDF
           </button>
         </div>

@@ -59,7 +59,7 @@ const DEFAULT_CODE: Record<string, string> = {
 function InterviewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // URL params
   const interviewType = searchParams.get("type") || "coding";
@@ -731,6 +731,10 @@ function InterviewContent() {
     }
     return () => clearInterval(interval);
   }, [isGeneratingFeedback]);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login");
+  }, [authLoading, user, router]);
 
   // Loading states
   if (isGeneratingFeedback) {

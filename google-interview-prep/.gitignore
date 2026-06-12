@@ -43,6 +43,16 @@ next-env.d.ts
 # code-review-graph cache
 .code-review-graph/
 
+# context-mode (MCP server — local session DBs and indexed content)
+.context-mode/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+e2e/auth.json
+
 # python
 backend/venv/
 backend/__pycache__/

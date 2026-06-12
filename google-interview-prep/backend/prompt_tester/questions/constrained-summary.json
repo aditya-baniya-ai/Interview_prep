@@ -1,0 +1,57 @@
+{
+  "slug": "constrained-summary",
+  "title": "Constrained Article Summary",
+  "task_spec": "Write a prompt that summarizes an article in exactly 2 sentences, uses no bullet points, and does not begin with 'The article' or 'This article'.",
+  "difficulty": "medium",
+  "category": "constraint",
+  "tags": ["summarization", "constraint", "writing"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 256,
+    "token_budget": 100
+  },
+  "rubric": {},
+  "reference_solution_prompt": "Summarize the following article in exactly 2 sentences. Your summary must follow these strict rules:\n1. Write exactly 2 sentences (no more, no less)\n2. Do not use bullet points, dashes, or list formatting\n3. Do not begin your summary with 'The article' or 'This article'\n4. Be concise and capture the key points\n\nArticle:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "Climate change is one of the most pressing issues of our time. Scientists have warned that global temperatures are rising at an unprecedented rate due to greenhouse gas emissions from human activities. The burning of fossil fuels, deforestation, and industrial processes are major contributors. If current trends continue, sea levels could rise significantly, extreme weather events will become more frequent, and many species may face extinction. International agreements like the Paris Accord aim to limit warming, but experts say more aggressive action is needed.",
+      "type": "constraint",
+      "max_words": 60,
+      "forbidden_terms": ["• ", "- ", "The article", "This article"],
+      "required_terms": [],
+      "weight": 2.0
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "A new study from Harvard Medical School has found that regular exercise can significantly reduce the risk of developing type 2 diabetes. Researchers followed 10,000 participants over 10 years and found that those who exercised at least 150 minutes per week were 35% less likely to develop the condition. The benefits were seen across all age groups and body types.",
+      "type": "constraint",
+      "max_words": 60,
+      "forbidden_terms": ["• ", "- ", "The article", "This article"],
+      "required_terms": [],
+      "weight": 2.0
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "The smartphone industry saw record sales in 2023 despite a global economic slowdown. Premium devices from Apple and Samsung dominated the market, while Chinese manufacturers like Xiaomi gained ground in emerging markets. Supply chain disruptions from 2022 had largely resolved, allowing manufacturers to meet consumer demand. Foldable phones emerged as the new premium category.",
+      "type": "constraint",
+      "max_words": 60,
+      "forbidden_terms": ["• ", "- ", "The article", "This article", "* "],
+      "required_terms": [],
+      "weight": 2.0
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "Remote work has fundamentally changed office real estate markets in major cities. Downtown office vacancies hit record highs in San Francisco and New York, with many buildings converted to residential use. Companies have adopted hybrid models as a compromise, requiring employees to come in 2-3 days per week. Younger workers in particular have embraced the flexibility that remote work provides.",
+      "type": "constraint",
+      "max_words": 60,
+      "forbidden_terms": ["• ", "- ", "The article", "This article"],
+      "required_terms": [],
+      "weight": 2.0
+    }
+  ]
+}

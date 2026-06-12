@@ -1,0 +1,76 @@
+{
+  "slug": "extract-iso-dates",
+  "title": "Extract ISO 8601 Dates",
+  "task_spec": "Write a prompt that extracts all ISO 8601 dates (YYYY-MM-DD) from text and returns them as a JSON array, in order of appearance. Return only the JSON array, nothing else.",
+  "difficulty": "easy",
+  "category": "extraction",
+  "tags": ["json", "regex", "extraction", "dates"],
+  "version": 1,
+  "status": "published",
+  "exec_config": {
+    "model_id": "gemini-2.0-flash",
+    "temperature": 0,
+    "n_runs": 3,
+    "max_output_tokens": 512,
+    "token_budget": 200
+  },
+  "rubric": {},
+  "reference_solution_prompt": "Extract all ISO 8601 dates in the format YYYY-MM-DD from the following text. Return only a JSON array of the dates in the order they appear in the text. If there are no ISO dates, return an empty array []. Do not include any explanation or additional text — only the JSON array.\n\nText:",
+  "test_suite": [
+    {
+      "id": "tc1",
+      "hidden_input": "The project started on 2024-01-15 and the deadline is 2024-06-30.",
+      "type": "json_schema",
+      "schema": {
+        "type": "array",
+        "items": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"}
+      },
+      "expected": ["2024-01-15", "2024-06-30"],
+      "weight": 2.0
+    },
+    {
+      "id": "tc2",
+      "hidden_input": "There are no dates in this sentence at all.",
+      "type": "json_schema",
+      "schema": {
+        "type": "array",
+        "maxItems": 0
+      },
+      "expected": [],
+      "weight": 1.5
+    },
+    {
+      "id": "tc3",
+      "hidden_input": "She was born on 2000-03-22 and graduated on 2022-05-14. Her first day at work was 2022-06-01.",
+      "type": "json_schema",
+      "schema": {
+        "type": "array",
+        "items": {"type": "string"}
+      },
+      "expected": ["2000-03-22", "2022-05-14", "2022-06-01"],
+      "weight": 2.0
+    },
+    {
+      "id": "tc4",
+      "hidden_input": "Mix of formats: 12/25/2023, January 5th 2024, and 2024-03-15. Only ISO dates please.",
+      "type": "json_schema",
+      "schema": {
+        "type": "array",
+        "items": {"type": "string"}
+      },
+      "expected": ["2024-03-15"],
+      "weight": 2.5
+    },
+    {
+      "id": "tc5",
+      "hidden_input": "Duplicate dates appear: 2023-07-04 was a holiday, and 2023-07-04 was mentioned again.",
+      "type": "json_schema",
+      "schema": {
+        "type": "array",
+        "items": {"type": "string"}
+      },
+      "expected": ["2023-07-04", "2023-07-04"],
+      "weight": 2.0
+    }
+  ]
+}
